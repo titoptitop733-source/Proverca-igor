@@ -1,93 +1,109 @@
-# Ivan Nerodyk
+# Semestrálny projekt - Programovanie v Pythone
 
-Student repository for ivan.nerodyk@student.tuke.sk
+**Študent:** Meno Priezvisko  
+**Názov projektu:** Doplňte názov projektu
 
-## Getting started
+Podrobné a aktuálne znenie zadania je na stránke predmetu:  
+https://marek-horvath.github.io/python/projekt/
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Zadanie
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Navrhnite a implementujte vlastný individuálny projekt v jazyku Python. Téma je voľná, projekt však musí riešiť konkrétny problém alebo poskytovať ucelenú funkcionalitu.
 
-## Add your files
+Projekt musí zmysluplne kombinovať minimálne **3 technologické oblasti**, napríklad:
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- skriptovanie, súbory alebo automatizácia;
+- GUI alebo webové používateľské rozhranie;
+- HTTP a externé API;
+- databáza;
+- spracovanie alebo vizualizácia dát;
+- web scraping alebo automatizácia prehliadača;
+- web backend;
+- iná primeraná Python technológia.
 
+Samotný import knižnice sa nepočíta. Každá zvolená technológia musí riešiť reálnu časť projektu.
+
+## Míľniky a hodnotenie
+
+| Časť | Termín | Body |
+| --- | --- | ---: |
+| MVP - prvá funkčná verzia | 6. týždeň semestra | 30 |
+| Finálna aplikácia | 11.-13. týždeň semestra | 40 |
+| Technická dokumentácia PDF | finálne odovzdanie | 20 |
+| Približne 5-minútové video | finálne odovzdanie | 10 |
+| **Spolu** | | **100** |
+
+MVP musí obsahovať reálny spustiteľný kód a základ hlavnej funkcionality. Nestačí prázdna štruktúra, mockup ani dokument s návrhom.
+
+## Požadovaný obsah repozitára
+
+- zdrojový kód rozdelený do zmysluplných modulov;
+- tento `README.md` doplnený o informácie o projekte;
+- `pyproject.toml` alebo `requirements.txt`;
+- `.gitignore`;
+- `.env.example`, ak projekt používa konfiguračné premenné;
+- testy primerané typu projektu;
+- potrebné assets alebo malé datasety;
+- finálna technická dokumentácia v PDF, odporúčane v rozsahu približne 10-15 strán.
+
+Video necommitujte ako veľký binárny súbor do Git repozitára. Spôsob jeho odovzdania bude oznámený samostatne.
+
+## Pravidlá práce
+
+- Commitujte priebežne. Jeden veľký commit na konci sa nepovažuje za priebežnú prácu.
+- Projekt musí byť možné spustiť na inom počítači podľa návodu v README.
+- Necommitujte heslá, API kľúče, tokeny, osobné dáta ani obsah súboru `.env`.
+- Nepoužívajte hardcoded absolútne cesty závislé od vášho počítača.
+- Ošetrite neplatné vstupy a bežné chybové situácie.
+- Uprednostnite menší funkčný a kvalitný projekt pred veľkým nefunkčným riešením.
+
+## Použitie AI
+
+AI nástroje sú povolené. Za celý odovzdaný projekt však zodpovedáte vy. Musíte rozumieť použitému kódu, vedieť ho vysvetliť, upraviť a obhájiť svoje technické rozhodnutia.
+
+Výraznejšie použitie AI, externých šablón, tutoriálov alebo prevzatého kódu uveďte v dokumentácii. Nepochopenie podstatnej časti riešenia môže viesť k bodovej penalizácii alebo k nesplneniu podmienok predmetu.
+
+## Výskumné spracovanie
+
+Odovzdaný projekt môže byť použitý na pedagogický alebo vedecký výskum. Pred spracovaním budú odstránené priame identifikátory študenta a výsledky budú prezentované iba v anonymizovanej alebo súhrnnej podobe.
+
+---
+
+## O projekte
+
+### Krátky popis
+
+Doplňte 2-4 vety: čo projekt rieši, pre koho je určený a aký je jeho hlavný cieľ.
+
+### Aktuálna funkcionalita
+
+- doplňte;
+- doplňte;
+- doplňte.
+
+### Plánovaná funkcionalita
+
+- doplňte;
+- doplňte;
+- doplňte.
+
+### Použité technologické oblasti
+
+1. **Oblasť:** stručne vysvetlite jej použitie v projekte.
+2. **Oblasť:** stručne vysvetlite jej použitie v projekte.
+3. **Oblasť:** stručne vysvetlite jej použitie v projekte.
+
+## Inštalácia a spustenie
+
+```bash
+# Doplňte presné príkazy potrebné na vytvorenie prostredia,
+# inštaláciu dependencies a spustenie projektu.
 ```
-cd existing_repo
-git remote add origin https://git.kpi.fei.tuke.sk/python/2026/ivan-nerodyk.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
+## Základné použitie
 
-* [Set up project integrations](https://git.kpi.fei.tuke.sk/python/2026/ivan-nerodyk/-/settings/integrations)
+Stručne opíšte hlavný používateľský scenár alebo uveďte konkrétny príklad spustenia.
 
-## Collaborate with your team
+## Zdroje a použité nástroje
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Uveďte dokumentáciu, datasety, tutoriály, externé zdroje a AI nástroje, ktoré ste pri projekte použili.
