@@ -1,34 +1,35 @@
-"""Price history charts rendered with matplotlib."""
+"""Price history charts rendered with matplotlib.
+
+The chart is drawn onto a matplotlib `Figure` (not pyplot), so the same drawing code is
+used both for saving PNG files (CLI) and for embedding in the Tkinter GUI.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import timedelta
 from pathlib import Path
 
-import matplotlib
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from matplotlib.ticker import FuncFormatter
 
-matplotlib.use("Agg")  # render to files, no GUI window needed
-
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.ticker import FuncFormatter  # noqa: E402
-
-from game_tracker.analysis import to_frame  # noqa: E402
-from game_tracker.models import PricePoint  # noqa: E402
+from game_tracker.analysis import to_frame
+from game_tracker.models import PricePoint
 
 
-def plot_price_history(
+def draw_price_history(
+    ax: Axes,
     best_points: Sequence[PricePoint],
     title: str,
-    output_path: Path,
     target_price: float | None = None,
     all_time_low: float | None = None,
-) -> Path:
-    """Save a chart of the best price over time to `output_path` (PNG)."""
+) -> None:
+    """Draw best price over time onto existing axes."""
     frame = to_frame(best_points)
     if frame.empty:
         raise ValueError("There is no price history to plot yet")
 
-    fig, ax = plt.subplots(figsize=(10, 5))
     ax.step(frame["recorded_at"], frame["price"], where="post", marker="o",
             linewidth=2, label="Best price")
     ax.plot(frame["recorded_at"], frame["retail_price"], linestyle=":",
@@ -43,12 +44,29 @@ def plot_price_history(
     ax.set_title(f"Price history: {title}")
     ax.set_ylabel("Price (USD)")
     ax.set_ylim(bottom=0)
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _pos: f"${value:.0f}"))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _pos: f"${value:g}"))
+    if len(frame) == 1:
+        # A single snapshot would otherwise produce an x axis spanning several years.
+        moment = frame["recorded_at"].iloc[0]
+        ax.set_xlim(moment - timedelta(days=1), moment + timedelta(days=1))
     ax.grid(alpha=0.3)
-    ax.legend()
-    fig.autofmt_xdate()
+    ax.legend(fontsize="small")
+    for label in ax.get_xticklabels():
+        label.set_rotation(30)
+        label.set_horizontalalignment("right")
 
+
+def plot_price_history(
+    best_points: Sequence[PricePoint],
+    title: str,
+    output_path: Path,
+    target_price: float | None = None,
+    all_time_low: float | None = None,
+) -> Path:
+    """Save a chart of the best price over time to `output_path` (PNG)."""
+    figure = Figure(figsize=(10, 5))
+    draw_price_history(figure.add_subplot(), best_points, title, target_price, all_time_low)
+    figure.tight_layout()
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=120, bbox_inches="tight")
-    plt.close(fig)
+    figure.savefig(output_path, dpi=120)
     return output_path
