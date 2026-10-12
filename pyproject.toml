@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "game-price-tracker"
-version = "0.2.0"
+version = "0.3.0"
 description = "Track PC game prices across stores using the CheapShark API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,9 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 game-tracker = "game_tracker.cli:main"
+
+[project.gui-scripts]
+game-tracker-gui = "game_tracker.ui.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

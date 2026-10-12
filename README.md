@@ -23,12 +23,13 @@ a game drops below a chosen target price.
 - **"buy now / good deal / wait" recommendation** with explained reasons
 - price history charts (matplotlib, PNG)
 - price alerts when the best price is at or below the target
+- **desktop GUI (Tkinter)**: search & add games, wishlist coloured by advice, statistics,
+  embedded interactive chart, price alert pop-ups, prices refreshed in a background thread
 - automatic database migration from older versions
 - error handling for network problems, timeouts, rate limits and invalid input
 
 ## Planned functionality
 
-- Tkinter GUI (search, wishlist, price chart, alerts)
 - conversion of prices to EUR using an exchange-rate API
 - scheduled automatic updates
 
@@ -40,7 +41,7 @@ a game drops below a chosen target price.
 | Databases | SQLite schema with wishlist, stores and price history, parameterized queries |
 | Scripting / CLI | `argparse` CLI, configuration via `.env`, `pathlib` |
 | Data Science | pandas statistics, recommendation heuristic, matplotlib charts |
-| User interface *(planned)* | Tkinter / ttk desktop GUI |
+| User interface | Tkinter / ttk desktop GUI with embedded matplotlib chart |
 
 ## Requirements
 
@@ -71,7 +72,19 @@ All settings are in `.env` (see `.env.example`):
 
 ## Running
 
-Run commands from the project root:
+Run commands from the project root.
+
+### Desktop application
+
+```bash
+game-tracker gui          # or: game-tracker-gui
+```
+
+On start the application refreshes prices in the background (games updated in the last
+`GT_MIN_SNAPSHOT_INTERVAL_HOURS` are skipped) and shows a pop-up when a price reaches
+your target.
+
+### Command line
 
 ```bash
 game-tracker search "hollow knight"        # find a game and its ID
@@ -103,11 +116,20 @@ src/game_tracker/
 ├── api_client.py   # CheapShark HTTP client -> domain models
 ├── models.py       # dataclasses (Game, Deal, PricePoint, ...)
 ├── storage.py      # SQLite repository
-├── collector.py    # business logic: updating prices, alerts
+├── collector.py    # business logic: adding games, updating prices, alerts
 ├── analysis.py     # pandas statistics and buy/wait recommendation
-├── charts.py       # matplotlib price charts
+├── overview.py     # combines stored data + analysis (shared by CLI and GUI)
+├── service.py      # thread-safe facade used by the GUI
+├── charts.py       # matplotlib price charts (PNG and embedded)
 ├── config.py       # settings from environment / .env
-└── cli.py          # command-line interface
+├── cli.py          # command-line interface
+└── ui/             # Tkinter GUI
+    ├── app.py           # main window
+    ├── search_dialog.py # search & add dialog
+    ├── chart_panel.py   # matplotlib chart inside Tkinter
+    ├── background.py    # runs HTTP requests outside the UI thread
+    ├── formatting.py    # pure formatting helpers (unit tested)
+    └── errors.py        # user-friendly error dialogs
 tests/              # pytest tests
 docs/               # documentation (PDF)
 ```
