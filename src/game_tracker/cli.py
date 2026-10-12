@@ -245,7 +245,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--open", action="store_true", help="open the chart after saving")
     p.set_defaults(handler=cmd_chart)
 
-    p = sub.add_parser("gui", help="open the desktop application")
+    p = sub.add_parser("gui", help="open the desktop application (Tkinter)")
+    p.set_defaults(handler=None)
+
+    p = sub.add_parser("web", help="start the DROPZONE web interface")
+    p.add_argument("--port", type=int, help="override GT_WEB_PORT")
+    p.add_argument("--no-browser", action="store_true", help="do not open the browser")
     p.set_defaults(handler=None)
 
     return parser
@@ -263,6 +268,24 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 2
+
+    if args.command == "web":
+        from dataclasses import replace
+
+        from game_tracker.web.server import run_server
+
+        if args.port is not None:
+            if not 1 <= args.port <= 65535:
+                print("Port must be between 1 and 65535", file=sys.stderr)
+                return 2
+            settings = replace(settings, web_port=args.port)
+        logging.basicConfig(level=settings.log_level)
+        try:
+            run_server(settings, open_browser=not args.no_browser)
+        except OSError as exc:
+            print(f"Could not start the web server: {exc}", file=sys.stderr)
+            return 1
+        return 0
 
     logging.basicConfig(
         level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s"

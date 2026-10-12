@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "game-price-tracker"
-version = "0.3.0"
+version = "0.4.0"
 description = "Track PC game prices across stores using the CheapShark API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,6 +13,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "pandas>=2.2",
     "matplotlib>=3.9",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +29,14 @@ game-tracker-gui = "game_tracker.ui.app:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+game_tracker = ["web/static/*", "web/static/css/*", "web/static/js/*", "web/static/js/views/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+filterwarnings = [
+    # Third-party deprecation inside starlette's TestClient, not caused by this project.
+    "ignore::DeprecationWarning:starlette.*",
+    "ignore:Using `httpx` with `starlette.testclient`",
+]
