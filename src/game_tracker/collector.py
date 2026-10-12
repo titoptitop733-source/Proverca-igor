@@ -55,6 +55,21 @@ def save_snapshot(storage: Storage, details: GameDetails, now: datetime | None =
     storage.set_cheapest_ever(details.game_id, details.cheapest_ever_price)
 
 
+def add_to_wishlist(
+    source: GameDataSource, storage: Storage, game_id: int, target_price: float | None = None
+) -> GameDetails | None:
+    """Validate the game via the API, add it and save the first snapshot.
+
+    Returns the game details, or None if the game was already in the wishlist.
+    """
+    details = source.get_game(game_id)
+    if not storage.add_game(details.game_id, details.title, target_price):
+        return None
+    sync_stores(source, storage)
+    save_snapshot(storage, details)
+    return details
+
+
 def update_wishlist(
     source: GameDataSource,
     storage: Storage,
@@ -73,7 +88,9 @@ def update_wishlist(
 
     for item in storage.list_games():
         last = storage.last_snapshot_at(item.game_id)
-        if not force and last is not None and timestamp - last < min_interval:
+        # Games without a stored all-time low (e.g. added by v0.1) are never skipped.
+        is_recent = last is not None and timestamp - last < min_interval
+        if not force and is_recent and item.cheapest_ever_price is not None:
             report.skipped.append(item.game_id)
             continue
 

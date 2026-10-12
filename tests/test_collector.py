@@ -55,6 +55,7 @@ def test_recent_snapshot_is_skipped_unless_forced(storage):
 
     now = datetime(2026, 5, 1, 12, tzinfo=timezone.utc)
     storage.add_game(1, "Game 1")
+    storage.set_cheapest_ever(1, 4.0)
     storage.record_prices(1, [Deal(1, 9.0, 20.0, 55.0)], recorded_at=now - timedelta(hours=1))
     source = FakeSource({1: make_game(1, 9.99)})
 
@@ -72,3 +73,30 @@ def test_update_saves_cheapest_ever(storage):
     update_wishlist(FakeSource({1: game}), storage)
 
     assert storage.get_game(1).cheapest_ever_price == 3.5
+
+
+def test_game_without_all_time_low_is_not_skipped(storage):
+    """Regression: games added by v0.1 had no all-time low and were skipped forever."""
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 5, 1, 12, tzinfo=timezone.utc)
+    storage.add_game(1, "Game 1")
+    storage.record_prices(1, [Deal(1, 9.0, 20.0, 55.0)], recorded_at=now - timedelta(hours=1))
+    game = GameDetails(1, "Game 1", (Deal(1, 9.0, 20.0, 55.0),), cheapest_ever_price=2.99)
+
+    report = update_wishlist(FakeSource({1: game}), storage, now=now)
+
+    assert report.updated == [1]
+    assert storage.get_game(1).cheapest_ever_price == 2.99
+
+
+def test_add_to_wishlist_saves_first_snapshot(storage):
+    from game_tracker.collector import add_to_wishlist
+
+    game = GameDetails(7, "Game 7", (Deal(1, 5.0, 10.0, 50.0),), cheapest_ever_price=3.0)
+    source = FakeSource({7: game})
+
+    assert add_to_wishlist(source, storage, 7, target_price=4.0) == game
+    assert add_to_wishlist(source, storage, 7) is None  # already there
+    assert len(storage.get_history(7)) == 1
+    assert storage.get_game(7).cheapest_ever_price == 3.0
