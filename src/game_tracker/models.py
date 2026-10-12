@@ -48,6 +48,7 @@ class WishlistItem:
     title: str
     target_price: float | None
     added_at: datetime
+    cheapest_ever_price: float | None = None
 
 
 @dataclass(frozen=True)

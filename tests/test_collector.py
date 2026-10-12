@@ -48,3 +48,27 @@ def test_one_failing_game_does_not_stop_others(storage):
 
 def test_sync_stores_failure_is_not_fatal(storage):
     assert sync_stores(FakeSource({}), storage) is False
+
+
+def test_recent_snapshot_is_skipped_unless_forced(storage):
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 5, 1, 12, tzinfo=timezone.utc)
+    storage.add_game(1, "Game 1")
+    storage.record_prices(1, [Deal(1, 9.0, 20.0, 55.0)], recorded_at=now - timedelta(hours=1))
+    source = FakeSource({1: make_game(1, 9.99)})
+
+    skipped = update_wishlist(source, storage, now=now, min_interval=timedelta(hours=6))
+    forced = update_wishlist(source, storage, now=now, force=True)
+
+    assert skipped.skipped == [1] and skipped.updated == []
+    assert forced.updated == [1]
+
+
+def test_update_saves_cheapest_ever(storage):
+    storage.add_game(1, "Game 1")
+    game = GameDetails(1, "Game 1", (Deal(1, 10.0, 20.0, 50.0),), cheapest_ever_price=3.5)
+
+    update_wishlist(FakeSource({1: game}), storage)
+
+    assert storage.get_game(1).cheapest_ever_price == 3.5

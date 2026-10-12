@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 
 from game_tracker.models import Deal, PricePoint, Store, WishlistItem
+
+logger = logging.getLogger(__name__)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS stores (
@@ -17,10 +20,11 @@ CREATE TABLE IF NOT EXISTS stores (
 );
 
 CREATE TABLE IF NOT EXISTS games (
-    game_id      INTEGER PRIMARY KEY,
-    title        TEXT NOT NULL,
-    target_price REAL CHECK (target_price IS NULL OR target_price >= 0),
-    added_at     TEXT NOT NULL
+    game_id             INTEGER PRIMARY KEY,
+    title               TEXT NOT NULL,
+    target_price        REAL CHECK (target_price IS NULL OR target_price >= 0),
+    added_at            TEXT NOT NULL,
+    cheapest_ever_price REAL
 );
 
 CREATE TABLE IF NOT EXISTS price_history (
@@ -37,6 +41,17 @@ CREATE INDEX IF NOT EXISTS idx_history_game_time
     ON price_history (game_id, recorded_at);
 """
 
+# Columns added after the first released version (v0.1.0). Databases created by older
+# versions are upgraded automatically when the application starts.
+MIGRATIONS: dict[str, dict[str, str]] = {
+    "games": {"cheapest_ever_price": "REAL"},
+}
+
+_PRICE_POINT_COLUMNS = """
+    h.game_id, h.store_id, s.name AS store_name, h.price,
+    h.retail_price, h.savings_percent, h.recorded_at
+"""
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -51,6 +66,7 @@ class Storage:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.executescript(SCHEMA)
+        self._migrate()
 
     def close(self) -> None:
         self._conn.close()
@@ -60,6 +76,16 @@ class Storage:
 
     def __exit__(self, *exc_info: object) -> None:
         self.close()
+
+    def _migrate(self) -> None:
+        for table, columns in MIGRATIONS.items():
+            existing = {row["name"] for row in self._conn.execute(f"PRAGMA table_info({table})")}
+            for column, column_type in columns.items():
+                if column not in existing:
+                    logger.info("Migrating database: adding %s.%s", table, column)
+                    # Table/column names come from the constant above, never from user input.
+                    self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+        self._conn.commit()
 
     # ------------------------------------------------------------------ stores
 
@@ -78,7 +104,7 @@ class Storage:
 
     def add_game(self, game_id: int, title: str, target_price: float | None = None) -> bool:
         """Add a game to the wishlist. Returns False if it is already there."""
-        _validate_target_price(target_price)
+        _validate_price(target_price, "Target price")
         with self._conn:
             cursor = self._conn.execute(
                 "INSERT OR IGNORE INTO games (game_id, title, target_price, added_at) "
@@ -88,13 +114,24 @@ class Storage:
         return cursor.rowcount == 1
 
     def set_target_price(self, game_id: int, target_price: float | None) -> bool:
-        _validate_target_price(target_price)
+        _validate_price(target_price, "Target price")
         with self._conn:
             cursor = self._conn.execute(
                 "UPDATE games SET target_price = ? WHERE game_id = ?",
                 (target_price, game_id),
             )
         return cursor.rowcount == 1
+
+    def set_cheapest_ever(self, game_id: int, price: float | None) -> None:
+        """Store the all-time lowest price reported by the API."""
+        _validate_price(price, "Cheapest price")
+        if price is None:
+            return
+        with self._conn:
+            self._conn.execute(
+                "UPDATE games SET cheapest_ever_price = ? WHERE game_id = ?",
+                (price, game_id),
+            )
 
     def remove_game(self, game_id: int) -> bool:
         with self._conn:
@@ -103,14 +140,16 @@ class Storage:
 
     def get_game(self, game_id: int) -> WishlistItem | None:
         row = self._conn.execute(
-            "SELECT game_id, title, target_price, added_at FROM games WHERE game_id = ?",
+            "SELECT game_id, title, target_price, added_at, cheapest_ever_price "
+            "FROM games WHERE game_id = ?",
             (game_id,),
         ).fetchone()
         return _row_to_wishlist_item(row) if row else None
 
     def list_games(self) -> list[WishlistItem]:
         rows = self._conn.execute(
-            "SELECT game_id, title, target_price, added_at FROM games ORDER BY title"
+            "SELECT game_id, title, target_price, added_at, cheapest_ever_price "
+            "FROM games ORDER BY title"
         ).fetchall()
         return [_row_to_wishlist_item(row) for row in rows]
 
@@ -134,11 +173,18 @@ class Storage:
             )
         return len(rows)
 
+    def last_snapshot_at(self, game_id: int) -> datetime | None:
+        row = self._conn.execute(
+            "SELECT MAX(recorded_at) AS last FROM price_history WHERE game_id = ?",
+            (game_id,),
+        ).fetchone()
+        return datetime.fromisoformat(row["last"]) if row and row["last"] else None
+
     def get_history(self, game_id: int) -> list[PricePoint]:
+        """All recorded deals (every store, every snapshot)."""
         rows = self._conn.execute(
-            """
-            SELECT h.game_id, h.store_id, s.name AS store_name, h.price,
-                   h.retail_price, h.savings_percent, h.recorded_at
+            f"""
+            SELECT {_PRICE_POINT_COLUMNS}
             FROM price_history h
             LEFT JOIN stores s ON s.store_id = h.store_id
             WHERE h.game_id = ?
@@ -148,29 +194,35 @@ class Storage:
         ).fetchall()
         return [_row_to_price_point(row) for row in rows]
 
+    def get_best_price_history(self, game_id: int) -> list[PricePoint]:
+        """The cheapest deal of every snapshot - one row per snapshot."""
+        rows = self._conn.execute(
+            f"""
+            SELECT {_PRICE_POINT_COLUMNS}
+            FROM (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY recorded_at ORDER BY price, store_id
+                ) AS rank_in_snapshot
+                FROM price_history
+                WHERE game_id = ?
+            ) h
+            LEFT JOIN stores s ON s.store_id = h.store_id
+            WHERE h.rank_in_snapshot = 1
+            ORDER BY h.recorded_at
+            """,
+            (game_id,),
+        ).fetchall()
+        return [_row_to_price_point(row) for row in rows]
+
     def latest_best_price(self, game_id: int) -> PricePoint | None:
         """Cheapest deal from the most recent snapshot of a game."""
-        row = self._conn.execute(
-            """
-            SELECT h.game_id, h.store_id, s.name AS store_name, h.price,
-                   h.retail_price, h.savings_percent, h.recorded_at
-            FROM price_history h
-            LEFT JOIN stores s ON s.store_id = h.store_id
-            WHERE h.game_id = ?
-              AND h.recorded_at = (
-                  SELECT MAX(recorded_at) FROM price_history WHERE game_id = ?
-              )
-            ORDER BY h.price
-            LIMIT 1
-            """,
-            (game_id, game_id),
-        ).fetchone()
-        return _row_to_price_point(row) if row else None
+        history = self.get_best_price_history(game_id)
+        return history[-1] if history else None
 
 
-def _validate_target_price(target_price: float | None) -> None:
-    if target_price is not None and target_price < 0:
-        raise ValueError("Target price must not be negative")
+def _validate_price(price: float | None, label: str) -> None:
+    if price is not None and price < 0:
+        raise ValueError(f"{label} must not be negative")
 
 
 def _row_to_wishlist_item(row: sqlite3.Row) -> WishlistItem:
@@ -179,6 +231,7 @@ def _row_to_wishlist_item(row: sqlite3.Row) -> WishlistItem:
         title=row["title"],
         target_price=row["target_price"],
         added_at=datetime.fromisoformat(row["added_at"]),
+        cheapest_ever_price=row["cheapest_ever_price"],
     )
 
 

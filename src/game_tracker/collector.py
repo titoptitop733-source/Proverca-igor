@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from game_tracker.api_client import ApiError
@@ -34,6 +34,7 @@ class PriceAlert:
 @dataclass
 class UpdateReport:
     updated: list[int] = field(default_factory=list)
+    skipped: list[int] = field(default_factory=list)
     failed: dict[int, str] = field(default_factory=dict)
     alerts: list[PriceAlert] = field(default_factory=list)
 
@@ -48,17 +49,34 @@ def sync_stores(source: GameDataSource, storage: Storage) -> bool:
     return True
 
 
+def save_snapshot(storage: Storage, details: GameDetails, now: datetime | None = None) -> None:
+    """Store current deals and the all-time low reported by the API."""
+    storage.record_prices(details.game_id, details.deals, recorded_at=now)
+    storage.set_cheapest_ever(details.game_id, details.cheapest_ever_price)
+
+
 def update_wishlist(
-    source: GameDataSource, storage: Storage, now: datetime | None = None
+    source: GameDataSource,
+    storage: Storage,
+    now: datetime | None = None,
+    min_interval: timedelta = timedelta(hours=6),
+    force: bool = False,
 ) -> UpdateReport:
     """Fetch current prices for every wishlist game and store them as a snapshot.
 
+    Games with a snapshot younger than `min_interval` are skipped (unless `force`),
+    so running the command often does not fill the database with duplicates.
     One failing game does not stop the update of the others.
     """
     report = UpdateReport()
     timestamp = now or utc_now()
 
     for item in storage.list_games():
+        last = storage.last_snapshot_at(item.game_id)
+        if not force and last is not None and timestamp - last < min_interval:
+            report.skipped.append(item.game_id)
+            continue
+
         try:
             details = source.get_game(item.game_id)
         except ApiError as exc:
@@ -66,7 +84,7 @@ def update_wishlist(
             report.failed[item.game_id] = str(exc)
             continue
 
-        storage.record_prices(item.game_id, details.deals, recorded_at=timestamp)
+        save_snapshot(storage, details, now=timestamp)
         report.updated.append(item.game_id)
 
         best = details.best_deal
@@ -81,5 +99,8 @@ def update_wishlist(
                 )
             )
 
-    logger.info("Updated %d games, %d failed", len(report.updated), len(report.failed))
+    logger.info(
+        "Updated %d, skipped %d, failed %d",
+        len(report.updated), len(report.skipped), len(report.failed),
+    )
     return report

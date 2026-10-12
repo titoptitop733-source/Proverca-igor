@@ -73,3 +73,52 @@ def test_set_target_price(storage):
     assert storage.set_target_price(612, 4.5) is True
     assert storage.get_game(612).target_price == 4.5
     assert storage.set_target_price(999, 4.5) is False
+
+
+def test_best_price_history_has_one_row_per_snapshot(storage):
+    storage.add_game(612, "LEGO Batman")
+    t1 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    t2 = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    storage.record_prices(612, [Deal(1, 10.0, 20.0, 50.0), Deal(2, 8.0, 20.0, 60.0)], t1)
+    storage.record_prices(612, [Deal(1, 20.0, 20.0, 0.0), Deal(2, 20.0, 20.0, 0.0)], t2)
+
+    best = storage.get_best_price_history(612)
+
+    assert [p.price for p in best] == [8.0, 20.0]
+    assert [p.store_id for p in best] == [2, 1]  # tie broken by store_id
+
+
+def test_last_snapshot_at(storage):
+    storage.add_game(612, "LEGO Batman")
+    assert storage.last_snapshot_at(612) is None
+    t = datetime(2026, 3, 1, tzinfo=timezone.utc)
+    storage.record_prices(612, [Deal(1, 5.0, 10.0, 50.0)], t)
+    assert storage.last_snapshot_at(612) == t
+
+
+def test_cheapest_ever_is_saved(storage):
+    storage.add_game(612, "LEGO Batman")
+    storage.set_cheapest_ever(612, 2.99)
+    assert storage.get_game(612).cheapest_ever_price == 2.99
+
+
+def test_old_database_is_migrated(tmp_path):
+    import sqlite3
+
+    from game_tracker.storage import Storage
+
+    db_path = tmp_path / "old.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "CREATE TABLE games (game_id INTEGER PRIMARY KEY, title TEXT NOT NULL, "
+        "target_price REAL, added_at TEXT NOT NULL)"
+    )
+    conn.execute("INSERT INTO games VALUES (1, 'Old game', NULL, '2026-01-01T00:00:00+00:00')")
+    conn.commit()
+    conn.close()
+
+    with Storage(db_path) as db:
+        game = db.get_game(1)
+
+    assert game.title == "Old game"
+    assert game.cheapest_ever_price is None
