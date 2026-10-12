@@ -8,11 +8,14 @@ from typing import Any
 
 import httpx
 
-from game_tracker.models import Deal, GameDetails, GameSearchResult, Store
+from game_tracker.models import Deal, DealListing, GameDetails, GameSearchResult, Store
 
 logger = logging.getLogger(__name__)
 
-USER_AGENT = "game-price-tracker/0.1 (student project)"
+USER_AGENT = "game-price-tracker/0.4 (student project)"
+
+# Sort options supported by the CheapShark /deals endpoint.
+DEAL_SORT_OPTIONS = ("Deal Rating", "Savings", "Price", "Metacritic", "Reviews", "Recent")
 
 
 class ApiError(Exception):
@@ -71,6 +74,41 @@ class CheapSharkClient:
             raise ApiError(f"Game with ID {game_id} was not found")
         return _parse_game_details(game_id, data)
 
+    def get_deals(
+        self,
+        *,
+        sort_by: str = "Deal Rating",
+        store_ids: list[int] | None = None,
+        max_price: float | None = None,
+        title: str | None = None,
+        page: int = 0,
+        page_size: int = 30,
+    ) -> list[DealListing]:
+        """Return currently discounted games (only offers that are on sale)."""
+        if sort_by not in DEAL_SORT_OPTIONS:
+            raise ValueError(f"sort_by must be one of {DEAL_SORT_OPTIONS}")
+        if not 1 <= page_size <= 60:
+            raise ValueError("page_size must be between 1 and 60")
+        if page < 0:
+            raise ValueError("page must not be negative")
+        if max_price is not None and max_price < 0:
+            raise ValueError("max_price must not be negative")
+
+        params: dict[str, Any] = {
+            "sortBy": sort_by, "onSale": 1, "pageNumber": page, "pageSize": page_size,
+        }
+        if store_ids:
+            params["storeID"] = ",".join(str(store_id) for store_id in store_ids)
+        if max_price is not None:
+            params["upperPrice"] = max_price
+        if title and title.strip():
+            params["title"] = title.strip()
+
+        data = self._get("deals", params)
+        if not isinstance(data, list):
+            raise ApiError("Unexpected response format for deals")
+        return [_parse_deal_listing(item) for item in data]
+
     def get_stores(self) -> list[Store]:
         """Return all stores known to CheapShark."""
         data = self._get("stores")
@@ -103,6 +141,20 @@ class CheapSharkClient:
 
 # ---------------------------------------------------------------------- parsing
 
+def _optional_int(value: Any) -> int | None:
+    """CheapShark uses null, "" or "0" for missing numeric values."""
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
+def _safe_url(value: Any) -> str | None:
+    """Accept only https URLs, so the web UI never renders other schemes (e.g. javascript:)."""
+    return value if isinstance(value, str) and value.startswith("https://") else None
+
+
 def _to_float(value: Any, field: str) -> float:
     try:
         return float(value)
@@ -123,6 +175,8 @@ def _parse_search_result(item: dict[str, Any]) -> GameSearchResult:
             game_id=_to_int(item["gameID"], "gameID"),
             title=str(item["external"]),
             cheapest_price=_to_float(item["cheapest"], "cheapest"),
+            steam_app_id=_optional_int(item.get("steamAppID")),
+            thumb_url=_safe_url(item.get("thumb")),
         )
     except KeyError as exc:
         raise ApiError(f"Missing field in search result: {exc}") from exc
@@ -142,7 +196,8 @@ def _parse_deal(item: dict[str, Any]) -> Deal:
 
 def _parse_game_details(game_id: int, data: dict[str, Any]) -> GameDetails:
     try:
-        title = str(data["info"]["title"])
+        info = data["info"]
+        title = str(info["title"])
         deals = tuple(_parse_deal(item) for item in data.get("deals", []))
     except (KeyError, TypeError) as exc:
         raise ApiError(f"Missing field in game details: {exc}") from exc
@@ -160,7 +215,32 @@ def _parse_game_details(game_id: int, data: dict[str, Any]) -> GameDetails:
         cheapest_ever_date=datetime.fromtimestamp(_to_int(ever_date, "date"), tz=timezone.utc)
         if ever_date is not None
         else None,
+        steam_app_id=_optional_int(info.get("steamAppID")),
+        thumb_url=_safe_url(info.get("thumb")),
     )
+
+
+def _parse_deal_listing(item: dict[str, Any]) -> DealListing:
+    try:
+        last_change = _optional_int(item.get("lastChange"))
+        return DealListing(
+            game_id=_to_int(item["gameID"], "gameID"),
+            title=str(item["title"]),
+            store_id=_to_int(item["storeID"], "storeID"),
+            sale_price=_to_float(item["salePrice"], "salePrice"),
+            normal_price=_to_float(item["normalPrice"], "normalPrice"),
+            savings_percent=round(_to_float(item["savings"], "savings"), 2),
+            metacritic_score=_optional_int(item.get("metacriticScore")),
+            steam_rating_text=item.get("steamRatingText") or None,
+            steam_rating_percent=_optional_int(item.get("steamRatingPercent")),
+            steam_app_id=_optional_int(item.get("steamAppID")),
+            thumb_url=_safe_url(item.get("thumb")),
+            last_change=datetime.fromtimestamp(last_change, tz=timezone.utc)
+            if last_change
+            else None,
+        )
+    except KeyError as exc:
+        raise ApiError(f"Missing field in deal listing: {exc}") from exc
 
 
 def _parse_store(item: dict[str, Any]) -> Store:

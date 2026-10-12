@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS games (
     title               TEXT NOT NULL,
     target_price        REAL CHECK (target_price IS NULL OR target_price >= 0),
     added_at            TEXT NOT NULL,
-    cheapest_ever_price REAL
+    cheapest_ever_price REAL,
+    steam_app_id        INTEGER,
+    thumb_url           TEXT
 );
 
 CREATE TABLE IF NOT EXISTS price_history (
@@ -44,8 +46,12 @@ CREATE INDEX IF NOT EXISTS idx_history_game_time
 # Columns added after the first released version (v0.1.0). Databases created by older
 # versions are upgraded automatically when the application starts.
 MIGRATIONS: dict[str, dict[str, str]] = {
-    "games": {"cheapest_ever_price": "REAL"},
+    "games": {"cheapest_ever_price": "REAL", "steam_app_id": "INTEGER", "thumb_url": "TEXT"},
 }
+
+_GAME_COLUMNS = (
+    "game_id, title, target_price, added_at, cheapest_ever_price, steam_app_id, thumb_url"
+)
 
 _PRICE_POINT_COLUMNS = """
     h.game_id, h.store_id, s.name AS store_name, h.price,
@@ -100,6 +106,12 @@ class Storage:
                 [(s.store_id, s.name, int(s.is_active)) for s in stores],
             )
 
+    def list_stores(self) -> list[Store]:
+        rows = self._conn.execute(
+            "SELECT store_id, name, is_active FROM stores ORDER BY name"
+        ).fetchall()
+        return [Store(row["store_id"], row["name"], bool(row["is_active"])) for row in rows]
+
     # ------------------------------------------------------------------ wishlist
 
     def add_game(self, game_id: int, title: str, target_price: float | None = None) -> bool:
@@ -133,6 +145,17 @@ class Storage:
                 (price, game_id),
             )
 
+    def set_game_media(
+        self, game_id: int, steam_app_id: int | None, thumb_url: str | None
+    ) -> None:
+        """Store artwork identifiers; existing values are kept when new ones are missing."""
+        with self._conn:
+            self._conn.execute(
+                "UPDATE games SET steam_app_id = COALESCE(?, steam_app_id), "
+                "thumb_url = COALESCE(?, thumb_url) WHERE game_id = ?",
+                (steam_app_id, thumb_url, game_id),
+            )
+
     def remove_game(self, game_id: int) -> bool:
         with self._conn:
             cursor = self._conn.execute("DELETE FROM games WHERE game_id = ?", (game_id,))
@@ -140,16 +163,14 @@ class Storage:
 
     def get_game(self, game_id: int) -> WishlistItem | None:
         row = self._conn.execute(
-            "SELECT game_id, title, target_price, added_at, cheapest_ever_price "
-            "FROM games WHERE game_id = ?",
+            f"SELECT {_GAME_COLUMNS} FROM games WHERE game_id = ?",
             (game_id,),
         ).fetchone()
         return _row_to_wishlist_item(row) if row else None
 
     def list_games(self) -> list[WishlistItem]:
         rows = self._conn.execute(
-            "SELECT game_id, title, target_price, added_at, cheapest_ever_price "
-            "FROM games ORDER BY title"
+            f"SELECT {_GAME_COLUMNS} FROM games ORDER BY title"
         ).fetchall()
         return [_row_to_wishlist_item(row) for row in rows]
 
@@ -214,6 +235,21 @@ class Storage:
         ).fetchall()
         return [_row_to_price_point(row) for row in rows]
 
+    def latest_snapshot(self, game_id: int) -> list[PricePoint]:
+        """All store offers from the most recent snapshot (cheapest first)."""
+        rows = self._conn.execute(
+            f"""
+            SELECT {_PRICE_POINT_COLUMNS}
+            FROM price_history h
+            LEFT JOIN stores s ON s.store_id = h.store_id
+            WHERE h.game_id = ?
+              AND h.recorded_at = (SELECT MAX(recorded_at) FROM price_history WHERE game_id = ?)
+            ORDER BY h.price, h.store_id
+            """,
+            (game_id, game_id),
+        ).fetchall()
+        return [_row_to_price_point(row) for row in rows]
+
     def latest_best_price(self, game_id: int) -> PricePoint | None:
         """Cheapest deal from the most recent snapshot of a game."""
         history = self.get_best_price_history(game_id)
@@ -232,6 +268,8 @@ def _row_to_wishlist_item(row: sqlite3.Row) -> WishlistItem:
         target_price=row["target_price"],
         added_at=datetime.fromisoformat(row["added_at"]),
         cheapest_ever_price=row["cheapest_ever_price"],
+        steam_app_id=row["steam_app_id"],
+        thumb_url=row["thumb_url"],
     )
 
 

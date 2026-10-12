@@ -56,6 +56,7 @@ def test_recent_snapshot_is_skipped_unless_forced(storage):
     now = datetime(2026, 5, 1, 12, tzinfo=timezone.utc)
     storage.add_game(1, "Game 1")
     storage.set_cheapest_ever(1, 4.0)
+    storage.set_game_media(1, 123, "https://example.test/thumb.jpg")
     storage.record_prices(1, [Deal(1, 9.0, 20.0, 55.0)], recorded_at=now - timedelta(hours=1))
     source = FakeSource({1: make_game(1, 9.99)})
 

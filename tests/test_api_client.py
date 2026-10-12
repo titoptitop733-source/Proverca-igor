@@ -81,3 +81,43 @@ def test_invalid_price_in_response_raises_api_error():
 def test_get_stores():
     stores = make_client(lambda r: httpx.Response(200, json=STORES_RESPONSE)).get_stores()
     assert [s.name for s in stores] == ["Steam", "GOG"]
+
+
+DEALS_RESPONSE = [
+    {"internalName": "CELESTE", "title": "Celeste", "dealID": "x", "storeID": "1",
+     "gameID": "100", "salePrice": "4.99", "normalPrice": "19.99", "isOnSale": "1",
+     "savings": "75.037519", "metacriticScore": "92", "steamRatingText": "Overwhelmingly Positive",
+     "steamRatingPercent": "97", "steamAppID": "504230", "releaseDate": 1516665600,
+     "lastChange": 1760000000, "dealRating": "9.5",
+     "thumb": "https://shared.steamstatic.com/thumb.jpg"},
+    {"internalName": "X", "title": "No Steam", "dealID": "y", "storeID": "7", "gameID": "101",
+     "salePrice": "1.00", "normalPrice": "2.00", "savings": "50", "metacriticScore": "0",
+     "steamRatingText": None, "steamRatingPercent": "0", "steamAppID": None,
+     "lastChange": 0, "thumb": "javascript:alert(1)"},
+]
+
+
+def test_get_deals_parses_and_sends_filters():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/1.0/deals"
+        assert request.url.params["onSale"] == "1"
+        assert request.url.params["storeID"] == "1,7"
+        assert request.url.params["upperPrice"] == "15.0"
+        return httpx.Response(200, json=DEALS_RESPONSE)
+
+    deals = make_client(handler).get_deals(store_ids=[1, 7], max_price=15.0)
+
+    assert deals[0].title == "Celeste"
+    assert deals[0].steam_app_id == 504230
+    assert deals[0].metacritic_score == 92
+    assert deals[0].last_change is not None
+    assert deals[1].metacritic_score is None        # "0" means unknown
+    assert deals[1].thumb_url is None               # unsafe URL rejected
+
+
+def test_get_deals_validates_arguments():
+    client = make_client(lambda r: httpx.Response(200, json=[]))
+    with pytest.raises(ValueError):
+        client.get_deals(sort_by="Popularity")
+    with pytest.raises(ValueError):
+        client.get_deals(page_size=100)

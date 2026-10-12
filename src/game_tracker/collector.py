@@ -53,6 +53,7 @@ def save_snapshot(storage: Storage, details: GameDetails, now: datetime | None =
     """Store current deals and the all-time low reported by the API."""
     storage.record_prices(details.game_id, details.deals, recorded_at=now)
     storage.set_cheapest_ever(details.game_id, details.cheapest_ever_price)
+    storage.set_game_media(details.game_id, details.steam_app_id, details.thumb_url)
 
 
 def add_to_wishlist(
@@ -88,9 +89,10 @@ def update_wishlist(
 
     for item in storage.list_games():
         last = storage.last_snapshot_at(item.game_id)
-        # Games without a stored all-time low (e.g. added by v0.1) are never skipped.
+        # Games missing data added by newer versions (all-time low, artwork) are never skipped.
         is_recent = last is not None and timestamp - last < min_interval
-        if not force and is_recent and item.cheapest_ever_price is not None:
+        is_complete = item.cheapest_ever_price is not None and item.thumb_url is not None
+        if not force and is_recent and is_complete:
             report.skipped.append(item.game_id)
             continue
 
