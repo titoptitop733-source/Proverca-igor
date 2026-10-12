@@ -9,15 +9,32 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Protocol
 
-from game_tracker.collector import GameDataSource, UpdateReport, add_to_wishlist, update_wishlist
+from game_tracker.collector import (
+    GameDataSource,
+    UpdateReport,
+    add_to_wishlist,
+    sync_stores,
+    update_wishlist,
+)
 from game_tracker.config import Settings
-from game_tracker.models import GameDetails, GameSearchResult
+from game_tracker.models import DealListing, GameDetails, GameSearchResult, PricePoint, Store
 from game_tracker.overview import GameOverview, build_game_overview, build_wishlist_overview
 from game_tracker.storage import Storage
 
 
 class SearchableSource(GameDataSource, Protocol):
     def search_games(self, title: str, limit: int = 10) -> list[GameSearchResult]: ...
+
+    def get_deals(
+        self,
+        *,
+        sort_by: str = "Deal Rating",
+        store_ids: list[int] | None = None,
+        max_price: float | None = None,
+        title: str | None = None,
+        page: int = 0,
+        page_size: int = 30,
+    ) -> list[DealListing]: ...
 
 
 class TrackerService:
@@ -55,3 +72,35 @@ class TrackerService:
     def game_overview(self, game_id: int) -> GameOverview | None:
         with self._storage() as storage:
             return build_game_overview(storage, game_id)
+
+    def latest_offers(self, game_id: int) -> list[PricePoint]:
+        with self._storage() as storage:
+            return storage.latest_snapshot(game_id)
+
+    def tracked_ids(self) -> set[int]:
+        with self._storage() as storage:
+            return {item.game_id for item in storage.list_games()}
+
+    def stores(self) -> list[Store]:
+        """Store list from the database; downloaded once when the database has none."""
+        with self._storage() as storage:
+            stores = storage.list_stores()
+            if not stores:
+                sync_stores(self._source, storage)
+                stores = storage.list_stores()
+            return stores
+
+    def deals(
+        self,
+        *,
+        sort_by: str = "Deal Rating",
+        store_ids: list[int] | None = None,
+        max_price: float | None = None,
+        title: str | None = None,
+        page: int = 0,
+        page_size: int = 30,
+    ) -> list[DealListing]:
+        return self._source.get_deals(
+            sort_by=sort_by, store_ids=store_ids, max_price=max_price,
+            title=title, page=page, page_size=page_size,
+        )
