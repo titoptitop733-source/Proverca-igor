@@ -11,12 +11,12 @@ from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
-from game_tracker.analysis import compute_stats, recommend
 from game_tracker.api_client import ApiError, CheapSharkClient
 from game_tracker.charts import plot_price_history
-from game_tracker.collector import save_snapshot, sync_stores, update_wishlist
+from game_tracker.collector import add_to_wishlist, sync_stores, update_wishlist
 from game_tracker.config import ConfigError, Settings, load_settings
 from game_tracker.models import PricePoint
+from game_tracker.overview import build_game_overview, build_wishlist_overview
 from game_tracker.storage import Storage
 
 
@@ -68,12 +68,10 @@ def cmd_search(args: argparse.Namespace, ctx: AppContext) -> int:
 
 
 def cmd_add(args: argparse.Namespace, ctx: AppContext) -> int:
-    details = ctx.client.get_game(args.game_id)  # validates that the game exists
-    if not ctx.storage.add_game(details.game_id, details.title, args.target):
-        print(f"'{details.title}' is already in your wishlist.")
+    details = add_to_wishlist(ctx.client, ctx.storage, args.game_id, args.target)
+    if details is None:
+        print(f"Game {args.game_id} is already in your wishlist.")
         return 0
-    sync_stores(ctx.client, ctx.storage)
-    save_snapshot(ctx.storage, details)
     best = details.best_deal
     print(f"Added '{details.title}' to wishlist.")
     if best:
@@ -97,15 +95,14 @@ def cmd_target(args: argparse.Namespace, ctx: AppContext) -> int:
 
 
 def cmd_list(args: argparse.Namespace, ctx: AppContext) -> int:
-    games = ctx.storage.list_games()
-    if not games:
+    overviews = build_wishlist_overview(ctx.storage)
+    if not overviews:
         print("Wishlist is empty. Use 'search' and 'add' to add games.")
         return 0
     print(f"{'ID':>8}  {'Best now':>9}  {'Target':>8}  {'Low ever':>9}  {'Advice':<10} Title")
-    for game in games:
-        history = ctx.storage.get_best_price_history(game.game_id)
-        stats = compute_stats(history, game.cheapest_ever_price)
-        advice = recommend(stats, game.target_price).verdict.value
+    for overview in overviews:
+        game, stats = overview.item, overview.stats
+        advice = overview.advice.verdict.value
         price = _money(stats.current_price) if stats else "-"
         low = _money(stats.all_time_low) if stats else "-"
         print(
@@ -156,13 +153,10 @@ def cmd_history(args: argparse.Namespace, ctx: AppContext) -> int:
 
 
 def cmd_stats(args: argparse.Namespace, ctx: AppContext) -> int:
-    game = ctx.storage.get_game(args.game_id)
-    if game is None:
+    overview = build_game_overview(ctx.storage, args.game_id)
+    if overview is None:
         return _not_in_wishlist(args.game_id)
-    stats = compute_stats(
-        ctx.storage.get_best_price_history(args.game_id), game.cheapest_ever_price
-    )
-    advice = recommend(stats, game.target_price)
+    game, stats, advice = overview.item, overview.stats, overview.advice
 
     print(f"=== {game.title} ===")
     if stats:
@@ -184,14 +178,13 @@ def cmd_stats(args: argparse.Namespace, ctx: AppContext) -> int:
 
 
 def cmd_chart(args: argparse.Namespace, ctx: AppContext) -> int:
-    game = ctx.storage.get_game(args.game_id)
-    if game is None:
+    overview = build_game_overview(ctx.storage, args.game_id)
+    if overview is None:
         return _not_in_wishlist(args.game_id)
-    history = ctx.storage.get_best_price_history(args.game_id)
-    stats = compute_stats(history, game.cheapest_ever_price)
+    game, stats = overview.item, overview.stats
     output: Path = args.output or ctx.settings.charts_dir / f"game_{game.game_id}.png"
     path = plot_price_history(
-        history,
+        overview.history,
         game.title,
         output,
         target_price=game.target_price,
@@ -252,11 +245,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--open", action="store_true", help="open the chart after saving")
     p.set_defaults(handler=cmd_chart)
 
+    p = sub.add_parser("gui", help="open the desktop application")
+    p.set_defaults(handler=None)
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "gui":
+        from game_tracker.ui.app import main as gui_main  # Tkinter is loaded only when needed
+
+        return gui_main()
 
     try:
         settings = load_settings()
