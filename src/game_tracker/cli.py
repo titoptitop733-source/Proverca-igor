@@ -1,22 +1,41 @@
-"""Command-line interface (MVP user interface)."""
+"""Command-line interface."""
 
 from __future__ import annotations
 
 import argparse
 import logging
 import sys
+import webbrowser
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import timedelta
+from pathlib import Path
 
+from game_tracker.analysis import compute_stats, recommend
 from game_tracker.api_client import ApiError, CheapSharkClient
-from game_tracker.collector import sync_stores, update_wishlist
-from game_tracker.config import ConfigError, load_settings
+from game_tracker.charts import plot_price_history
+from game_tracker.collector import save_snapshot, sync_stores, update_wishlist
+from game_tracker.config import ConfigError, Settings, load_settings
+from game_tracker.models import PricePoint
 from game_tracker.storage import Storage
 
-Handler = Callable[[argparse.Namespace, CheapSharkClient, Storage], int]
+
+@dataclass(frozen=True)
+class AppContext:
+    client: CheapSharkClient
+    storage: Storage
+    settings: Settings
+
+
+Handler = Callable[[argparse.Namespace, AppContext], int]
 
 
 def _money(value: float | None) -> str:
     return "-" if value is None else f"${value:.2f}"
+
+
+def _store(point: PricePoint) -> str:
+    return point.store_name or f"#{point.store_id}"
 
 
 def _non_negative_float(raw: str) -> float:
@@ -29,10 +48,15 @@ def _non_negative_float(raw: str) -> float:
     return value
 
 
+def _not_in_wishlist(game_id: int) -> int:
+    print(f"Game {game_id} is not in your wishlist.", file=sys.stderr)
+    return 1
+
+
 # ---------------------------------------------------------------------- commands
 
-def cmd_search(args: argparse.Namespace, client: CheapSharkClient, storage: Storage) -> int:
-    results = client.search_games(args.title, limit=args.limit)
+def cmd_search(args: argparse.Namespace, ctx: AppContext) -> int:
+    results = ctx.client.search_games(args.title, limit=args.limit)
     if not results:
         print(f"No games found for {args.title!r}.")
         return 0
@@ -43,13 +67,13 @@ def cmd_search(args: argparse.Namespace, client: CheapSharkClient, storage: Stor
     return 0
 
 
-def cmd_add(args: argparse.Namespace, client: CheapSharkClient, storage: Storage) -> int:
-    details = client.get_game(args.game_id)  # validates that the game exists
-    if not storage.add_game(details.game_id, details.title, args.target):
+def cmd_add(args: argparse.Namespace, ctx: AppContext) -> int:
+    details = ctx.client.get_game(args.game_id)  # validates that the game exists
+    if not ctx.storage.add_game(details.game_id, details.title, args.target):
         print(f"'{details.title}' is already in your wishlist.")
         return 0
-    sync_stores(client, storage)
-    storage.record_prices(details.game_id, details.deals)
+    sync_stores(ctx.client, ctx.storage)
+    save_snapshot(ctx.storage, details)
     best = details.best_deal
     print(f"Added '{details.title}' to wishlist.")
     if best:
@@ -58,43 +82,49 @@ def cmd_add(args: argparse.Namespace, client: CheapSharkClient, storage: Storage
     return 0
 
 
-def cmd_remove(args: argparse.Namespace, client: CheapSharkClient, storage: Storage) -> int:
-    if storage.remove_game(args.game_id):
+def cmd_remove(args: argparse.Namespace, ctx: AppContext) -> int:
+    if ctx.storage.remove_game(args.game_id):
         print(f"Game {args.game_id} removed from wishlist.")
         return 0
-    print(f"Game {args.game_id} is not in your wishlist.", file=sys.stderr)
-    return 1
+    return _not_in_wishlist(args.game_id)
 
 
-def cmd_target(args: argparse.Namespace, client: CheapSharkClient, storage: Storage) -> int:
-    if storage.set_target_price(args.game_id, args.price):
+def cmd_target(args: argparse.Namespace, ctx: AppContext) -> int:
+    if ctx.storage.set_target_price(args.game_id, args.price):
         print(f"Target price for game {args.game_id} set to {_money(args.price)}.")
         return 0
-    print(f"Game {args.game_id} is not in your wishlist.", file=sys.stderr)
-    return 1
+    return _not_in_wishlist(args.game_id)
 
 
-def cmd_list(args: argparse.Namespace, client: CheapSharkClient, storage: Storage) -> int:
-    games = storage.list_games()
+def cmd_list(args: argparse.Namespace, ctx: AppContext) -> int:
+    games = ctx.storage.list_games()
     if not games:
         print("Wishlist is empty. Use 'search' and 'add' to add games.")
         return 0
-    print(f"{'ID':>8}  {'Best now':>9}  {'Target':>8}  {'Store':<16} Title")
+    print(f"{'ID':>8}  {'Best now':>9}  {'Target':>8}  {'Low ever':>9}  {'Advice':<10} Title")
     for game in games:
-        best = storage.latest_best_price(game.game_id)
-        price = _money(best.price) if best else "-"
-        store = (best.store_name or f"#{best.store_id}") if best else "-"
+        history = ctx.storage.get_best_price_history(game.game_id)
+        stats = compute_stats(history, game.cheapest_ever_price)
+        advice = recommend(stats, game.target_price).verdict.value
+        price = _money(stats.current_price) if stats else "-"
+        low = _money(stats.all_time_low) if stats else "-"
         print(
             f"{game.game_id:>8}  {price:>9}  {_money(game.target_price):>8}  "
-            f"{store:<16} {game.title}"
+            f"{low:>9}  {advice:<10} {game.title}"
         )
     return 0
 
 
-def cmd_update(args: argparse.Namespace, client: CheapSharkClient, storage: Storage) -> int:
-    sync_stores(client, storage)
-    report = update_wishlist(client, storage)
+def cmd_update(args: argparse.Namespace, ctx: AppContext) -> int:
+    sync_stores(ctx.client, ctx.storage)
+    interval = timedelta(hours=ctx.settings.min_snapshot_interval_hours)
+    report = update_wishlist(ctx.client, ctx.storage, min_interval=interval, force=args.force)
     print(f"Updated {len(report.updated)} game(s).")
+    if report.skipped:
+        print(
+            f"Skipped {len(report.skipped)} game(s) updated less than "
+            f"{ctx.settings.min_snapshot_interval_hours:g} h ago (use --force to override)."
+        )
     for game_id, reason in report.failed.items():
         print(f"  ! game {game_id}: {reason}", file=sys.stderr)
     for alert in report.alerts:
@@ -105,20 +135,71 @@ def cmd_update(args: argparse.Namespace, client: CheapSharkClient, storage: Stor
     return 1 if report.failed and not report.updated else 0
 
 
-def cmd_history(args: argparse.Namespace, client: CheapSharkClient, storage: Storage) -> int:
-    game = storage.get_game(args.game_id)
+def cmd_history(args: argparse.Namespace, ctx: AppContext) -> int:
+    game = ctx.storage.get_game(args.game_id)
     if game is None:
-        print(f"Game {args.game_id} is not in your wishlist.", file=sys.stderr)
-        return 1
-    history = storage.get_history(args.game_id)
-    print(f"Price history for '{game.title}' ({len(history)} records)")
+        return _not_in_wishlist(args.game_id)
+    if args.all:
+        history = ctx.storage.get_history(args.game_id)
+        label = "all stores"
+    else:
+        history = ctx.storage.get_best_price_history(args.game_id)
+        label = "best price per snapshot"
+    print(f"Price history for '{game.title}' - {label} ({len(history)} records)")
     print(f"{'Recorded (UTC)':<17}  {'Price':>8}  {'Retail':>8}  {'Off':>4}  Store")
     for point in history:
         print(
             f"{point.recorded_at:%Y-%m-%d %H:%M}  {_money(point.price):>8}  "
-            f"{_money(point.retail_price):>8}  {point.savings_percent:>3.0f}%  "
-            f"{point.store_name or '#' + str(point.store_id)}"
+            f"{_money(point.retail_price):>8}  {point.savings_percent:>3.0f}%  {_store(point)}"
         )
+    return 0
+
+
+def cmd_stats(args: argparse.Namespace, ctx: AppContext) -> int:
+    game = ctx.storage.get_game(args.game_id)
+    if game is None:
+        return _not_in_wishlist(args.game_id)
+    stats = compute_stats(
+        ctx.storage.get_best_price_history(args.game_id), game.cheapest_ever_price
+    )
+    advice = recommend(stats, game.target_price)
+
+    print(f"=== {game.title} ===")
+    if stats:
+        print(f"Current best price : {_money(stats.current_price)} at {stats.current_store} "
+              f"(-{stats.current_discount:.0f}%, retail {_money(stats.retail_price)})")
+        print(f"All-time low       : {_money(stats.all_time_low)}")
+        print(f"Observed range     : {_money(stats.observed_min)} - {_money(stats.observed_max)}"
+              f", average {_money(stats.average_price)}")
+        print(f"Discounted in      : {stats.discount_share:.0%} of {stats.snapshots} snapshot(s),"
+              f" biggest discount {stats.max_discount:.0f}%")
+        last = f"{stats.last_discount_at:%Y-%m-%d}" if stats.last_discount_at else "never seen"
+        print(f"Last discount seen : {last}")
+        print(f"Tracking since     : {stats.first_seen:%Y-%m-%d}")
+    print(f"Your target        : {_money(game.target_price)}")
+    print(f"\nRecommendation: {advice.verdict.value}")
+    for reason in advice.reasons:
+        print(f"  - {reason}")
+    return 0
+
+
+def cmd_chart(args: argparse.Namespace, ctx: AppContext) -> int:
+    game = ctx.storage.get_game(args.game_id)
+    if game is None:
+        return _not_in_wishlist(args.game_id)
+    history = ctx.storage.get_best_price_history(args.game_id)
+    stats = compute_stats(history, game.cheapest_ever_price)
+    output: Path = args.output or ctx.settings.charts_dir / f"game_{game.game_id}.png"
+    path = plot_price_history(
+        history,
+        game.title,
+        output,
+        target_price=game.target_price,
+        all_time_low=stats.all_time_low if stats else None,
+    )
+    print(f"Chart saved to {path.resolve()}")
+    if args.open:
+        webbrowser.open(path.resolve().as_uri())
     return 0
 
 
@@ -149,15 +230,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("price", type=_non_negative_float)
     p.set_defaults(handler=cmd_target)
 
-    p = sub.add_parser("list", help="show wishlist with latest prices")
+    p = sub.add_parser("list", help="show wishlist with prices and advice")
     p.set_defaults(handler=cmd_list)
 
     p = sub.add_parser("update", help="fetch current prices for all wishlist games")
+    p.add_argument("--force", action="store_true", help="ignore minimal snapshot interval")
     p.set_defaults(handler=cmd_update)
 
     p = sub.add_parser("history", help="show recorded price history of a game")
     p.add_argument("game_id", type=int)
+    p.add_argument("--all", action="store_true", help="show every store, not only the best")
     p.set_defaults(handler=cmd_history)
+
+    p = sub.add_parser("stats", help="price statistics and buy/wait recommendation")
+    p.add_argument("game_id", type=int)
+    p.set_defaults(handler=cmd_stats)
+
+    p = sub.add_parser("chart", help="save a price history chart as PNG")
+    p.add_argument("game_id", type=int)
+    p.add_argument("--output", type=Path, help="output PNG path")
+    p.add_argument("--open", action="store_true", help="open the chart after saving")
+    p.set_defaults(handler=cmd_chart)
 
     return parser
 
@@ -180,10 +273,13 @@ def main(argv: list[str] | None = None) -> int:
         with CheapSharkClient(settings.api_base_url, settings.http_timeout) as client, Storage(
             settings.db_path
         ) as storage:
-            return handler(args, client, storage)
+            return handler(args, AppContext(client, storage, settings))
     except ApiError as exc:
         print(f"API error: {exc}", file=sys.stderr)
         return 1
     except ValueError as exc:
-        print(f"Invalid input: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 2
+    except OSError as exc:
+        print(f"File system error: {exc}", file=sys.stderr)
+        return 1

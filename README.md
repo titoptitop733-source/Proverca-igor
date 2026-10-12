@@ -12,21 +12,23 @@ several stores is slow and it is easy to miss a sale. This application keeps a w
 regularly records prices from all stores into a local database and notifies the user when
 a game drops below a chosen target price.
 
-## Current functionality (MVP)
+## Current functionality
 
 - search games by title via the public [CheapShark API](https://apidocs.cheapshark.com/)
 - wishlist with optional target price per game
 - download current deals from all stores and store snapshots in SQLite
-- price history per game, latest best price and store
+- minimal interval between snapshots (no duplicate data when updating often)
+- price history per game (best price per snapshot or all stores)
+- price statistics with pandas: all-time low, average, discount frequency, biggest discount
+- **"buy now / good deal / wait" recommendation** with explained reasons
+- price history charts (matplotlib, PNG)
 - price alerts when the best price is at or below the target
+- automatic database migration from older versions
 - error handling for network problems, timeouts, rate limits and invalid input
 
 ## Planned functionality
 
 - Tkinter GUI (search, wishlist, price chart, alerts)
-- analysis with pandas: historical minimum, average discount, discount frequency
-- "buy now or wait" recommendation based on collected price history
-- price charts with matplotlib
 - conversion of prices to EUR using an exchange-rate API
 - scheduled automatic updates
 
@@ -37,7 +39,7 @@ a game drops below a chosen target price.
 | HTTP and external API | `httpx` client for CheapShark, JSON parsing, timeouts, error handling |
 | Databases | SQLite schema with wishlist, stores and price history, parameterized queries |
 | Scripting / CLI | `argparse` CLI, configuration via `.env`, `pathlib` |
-| Data Science *(planned)* | pandas + matplotlib for price statistics and charts |
+| Data Science | pandas statistics, recommendation heuristic, matplotlib charts |
 | User interface *(planned)* | Tkinter / ttk desktop GUI |
 
 ## Requirements
@@ -64,17 +66,21 @@ All settings are in `.env` (see `.env.example`):
 | `GT_DB_PATH` | `data/game_tracker.db` | SQLite database file (created automatically) |
 | `GT_HTTP_TIMEOUT` | `10` | HTTP timeout in seconds |
 | `GT_LOG_LEVEL` | `WARNING` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `GT_MIN_SNAPSHOT_INTERVAL_HOURS` | `6` | minimal hours between two snapshots of a game |
+| `GT_CHARTS_DIR` | `data/charts` | where charts are saved |
 
-## Running the MVP
+## Running
 
 Run commands from the project root:
 
 ```bash
 game-tracker search "hollow knight"        # find a game and its ID
 game-tracker add 12345 --target 7.50       # add to wishlist with target price
-game-tracker list                          # wishlist with current best prices
-game-tracker update                        # refresh prices of all games
-game-tracker history 12345                 # recorded price history
+game-tracker list                          # wishlist with prices and buy/wait advice
+game-tracker update                        # refresh prices (add --force to ignore interval)
+game-tracker history 12345                 # best price per snapshot (--all for every store)
+game-tracker stats 12345                   # statistics and recommendation
+game-tracker chart 12345 --open            # save price chart as PNG and open it
 game-tracker target 12345 5                # change target price
 game-tracker remove 12345
 ```
@@ -98,6 +104,8 @@ src/game_tracker/
 ├── models.py       # dataclasses (Game, Deal, PricePoint, ...)
 ├── storage.py      # SQLite repository
 ├── collector.py    # business logic: updating prices, alerts
+├── analysis.py     # pandas statistics and buy/wait recommendation
+├── charts.py       # matplotlib price charts
 ├── config.py       # settings from environment / .env
 └── cli.py          # command-line interface
 tests/              # pytest tests
@@ -107,3 +115,15 @@ docs/               # documentation (PDF)
 ## Data source
 
 Prices are provided by [CheapShark](https://www.cheapshark.com/). All prices are in USD.
+
+## How the recommendation works
+
+The advice is computed from the best price of every snapshot plus the all-time low
+reported by CheapShark (which covers the period before tracking started):
+
+1. **BUY NOW** - price reached your target, or is within 10 % of the all-time low
+2. **GOOD DEAL** - at least 50 % off, or 15 % below the average observed price
+3. **WAIT** - the game has already been at least 30 % cheaper, or there is no discount
+
+With fewer than 3 snapshots the advice is marked as low-confidence. Thresholds are
+constants at the top of `analysis.py`.
