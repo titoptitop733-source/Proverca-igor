@@ -1,11 +1,20 @@
 // Small dependency-free SVG charts: sparkline and interactive price history chart.
 import { esc, fromUsd, money, moneyLocal, shortDate } from "./format.js";
 
-const COLORS = { lime: "#b7ff5a", blue: "#8da6ff", coral: "#ff7185", grid: "#2a2f38",
-  muted: "#69717d", text: "#9aa2ae" };
+/** Chart colours come from CSS variables, so charts follow the light/dark theme. */
+function themeColors() {
+  const css = getComputedStyle(document.documentElement);
+  const read = (name) => css.getPropertyValue(name).trim();
+  return {
+    lime: read("--chart-line"), area: read("--chart-area"), blue: read("--blue-text"),
+    coral: read("--negative-text"), grid: read("--border"), muted: read("--muted"),
+    text: read("--text-2"), bg: read("--bg"),
+  };
+}
 
 /** Mini trend line. Lime when the price went down, coral when it went up. */
 export function sparkline(values, width = 96, height = 28) {
+  const COLORS = themeColors();
   if (!values || values.length < 2) {
     return `<svg width="${width}" height="${height}" aria-hidden="true">
       <line x1="0" x2="${width}" y1="${height / 2}" y2="${height / 2}" stroke="${COLORS.grid}" stroke-dasharray="3 3"/></svg>`;
@@ -43,6 +52,7 @@ export function renderPriceChart(container, points, { target = null, low = null 
   tooltip.className = "chart-tooltip";
 
   const draw = () => {
+    const COLORS = themeColors();
     const width = Math.max(container.clientWidth - 16, 280);
     const height = Math.max(container.clientHeight - 16, 180);
     const pad = { top: 12, right: 16, bottom: 26, left: 52 };
@@ -92,8 +102,8 @@ export function renderPriceChart(container, points, { target = null, low = null 
     container.innerHTML = `
       <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Price history chart">
         <defs><linearGradient id="area-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stop-color="${COLORS.lime}" stop-opacity="0.16"/>
-          <stop offset="1" stop-color="${COLORS.lime}" stop-opacity="0"/></linearGradient></defs>
+          <stop offset="0" stop-color="${COLORS.area}" stop-opacity="0.18"/>
+          <stop offset="1" stop-color="${COLORS.area}" stop-opacity="0"/></linearGradient></defs>
         ${grid}
         <path d="${stepPath((p) => p.retail_price)}" fill="none" stroke="${COLORS.muted}" stroke-dasharray="2 4" stroke-width="1.2"/>
         <path d="${area}" fill="url(#area-fill)"/>
@@ -101,7 +111,7 @@ export function renderPriceChart(container, points, { target = null, low = null 
         ${refLine(target, COLORS.blue, `Target ${money(target)}`)}
         ${refLine(low, COLORS.coral, `All-time low ${money(low)}`)}
         <line class="guide" y1="${pad.top}" y2="${pad.top + innerH}" stroke="${COLORS.text}" stroke-width="1" opacity="0"/>
-        <circle class="dot" r="4.5" fill="${COLORS.lime}" stroke="#0d0f12" stroke-width="2" opacity="0"/>
+        <circle class="dot" r="4.5" fill="${COLORS.lime}" stroke="${COLORS.bg}" stroke-width="2" opacity="0"/>
         <rect class="hit" x="${pad.left}" y="${pad.top}" width="${innerW}" height="${innerH}" fill="transparent"/>
       </svg>`;
     container.append(tooltip);
@@ -137,5 +147,9 @@ export function renderPriceChart(container, points, { target = null, low = null 
   draw();
   const observer = new ResizeObserver(() => draw());
   observer.observe(container);
-  return () => observer.disconnect();
+  document.addEventListener("dropzone:theme", draw);
+  return () => {
+    observer.disconnect();
+    document.removeEventListener("dropzone:theme", draw);
+  };
 }

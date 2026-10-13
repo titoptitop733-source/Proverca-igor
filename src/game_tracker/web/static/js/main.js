@@ -5,6 +5,7 @@ import { activityItem } from "./components.js";
 import { esc, money } from "./format.js";
 import { icon } from "./icons.js";
 import { activeCurrency, prefs, savePref, state } from "./state.js";
+import { applyTheme, resolvedTheme, setTheme, toggleTheme } from "./theme.js";
 import { openModal, toast } from "./ui.js";
 import { renderDiscover } from "./views/discover.js";
 import { renderGame } from "./views/game.js";
@@ -42,9 +43,18 @@ function renderNav() {
     `<a href="#/${path}" data-path="${path}">${icon(iconName)}${label === "My wishlist" ? "Wishlist" : label}</a>`).join("")
     + `<a href="#" data-action="open-add">${icon("plus")}Track</a>`;
   document.getElementById("refresh-button").innerHTML = icon("refresh");
+  renderThemeButton();
   document.getElementById("search-wrap").insertAdjacentHTML("afterbegin", icon("search"));
   document.getElementById("notify-button").innerHTML = icon("bell");
   document.getElementById("settings-button").innerHTML = icon("settings");
+}
+
+function renderThemeButton() {
+  // Show the theme you would switch TO.
+  const light = resolvedTheme() === "light";
+  const button = document.getElementById("theme-button");
+  button.innerHTML = icon(light ? "moon" : "sun");
+  button.title = light ? "Switch to dark theme" : "Switch to light theme";
 }
 
 function highlightNav() {
@@ -154,6 +164,9 @@ function openSettings() {
     render(body) {
       const rates = Object.entries(meta?.rates ?? { USD: 1 });
       body.innerHTML = `
+        <div class="field" style="margin-bottom:14px"><label for="settings-theme">Theme</label>
+          <div class="segmented" id="settings-theme" role="group" aria-label="Theme">${[["dark", "Dark"], ["light", "Light"], ["system", "System"]]
+            .map(([value, label]) => `<button data-theme-choice="${value}" class="${(prefs.theme ?? "dark") === value ? "active" : ""}">${label}</button>`).join("")}</div></div>
         <div class="field"><label for="settings-currency">Display currency</label>
           <select class="select" id="settings-currency">${rates.map(([code]) =>
             `<option value="${code}" ${code === activeCurrency() ? "selected" : ""}>${code}</option>`).join("")}</select></div>
@@ -169,6 +182,12 @@ function openSettings() {
           <button class="btn" id="settings-force">${icon("refresh")}Check all prices now</button>
           <a class="btn btn-ghost" href="/docs" target="_blank" rel="noopener">${icon("external")}API documentation</a></div>`;
       body.querySelector("#settings-currency").addEventListener("change", (e) => setCurrency(e.target.value));
+      body.querySelector("#settings-theme").addEventListener("click", (e) => {
+        const choice = e.target.closest("[data-theme-choice]");
+        if (!choice) return;
+        setTheme(choice.dataset.themeChoice);
+        body.querySelectorAll("[data-theme-choice]").forEach((b) => b.classList.toggle("active", b === choice));
+      });
       body.querySelector("#settings-force").addEventListener("click", () => syncPrices(true));
     },
   });
@@ -283,6 +302,8 @@ function setupEvents() {
     else if (!(currentRoute.name === "game" && event.detail.removed)) route();
   });
   document.getElementById("refresh-button").addEventListener("click", () => syncPrices(true));
+  document.getElementById("theme-button").addEventListener("click", toggleTheme);
+  document.addEventListener("dropzone:theme", renderThemeButton);
   document.getElementById("notify-button").addEventListener("click", (e) => { e.stopPropagation(); toggleNotifications(); });
   document.getElementById("settings-button").addEventListener("click", openSettings);
   document.getElementById("currency-select").addEventListener("change", (e) => setCurrency(e.target.value));
@@ -292,6 +313,7 @@ function setupEvents() {
 // ------------------------------------------------------------------ start
 
 async function start() {
+  applyTheme();
   renderNav();
   setupEvents();
   setupSearch();

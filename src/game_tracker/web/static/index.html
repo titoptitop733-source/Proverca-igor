@@ -8,6 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="/css/app.css">
+  <script>
+    // Runs before the page is painted so the saved theme is used immediately.
+    try {
+      const theme = (JSON.parse(localStorage.getItem("dropzone.prefs.v1") || "{}").theme) || "dark";
+      const light = theme === "light" || (theme === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+      document.documentElement.dataset.theme = light ? "light" : "dark";
+    } catch { document.documentElement.dataset.theme = "dark"; }
+  </script>
 </head>
 <body>
   <div class="shell">
@@ -43,6 +51,7 @@
         </div>
         <div class="topbar-actions">
           <select class="currency-select" id="currency-select" aria-label="Currency"></select>
+          <button class="icon-button" id="theme-button" title="Switch theme" aria-label="Switch light or dark theme"></button>
           <button class="icon-button" id="refresh-button" title="Update prices" aria-label="Update prices"></button>
           <button class="icon-button" id="notify-button" title="Price activity" aria-label="Price activity"></button>
           <button class="icon-button" id="settings-button" title="Settings" aria-label="Settings"></button>

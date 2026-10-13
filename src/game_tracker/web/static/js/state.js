@@ -1,7 +1,7 @@
 // Global client state and user preferences persisted in localStorage.
 const PREFS_KEY = "dropzone.prefs.v1";
 
-const defaults = { currency: "EUR", wishlistView: "list", lastSeenActivity: null };
+const defaults = { currency: "EUR", wishlistView: "list", lastSeenActivity: null, theme: "dark" };
 
 function loadPrefs() {
   try {
