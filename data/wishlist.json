@@ -2,6 +2,51 @@
   "version": 1,
   "games": [
     {
+      "game_id": 202278,
+      "title": "Baldur's Gate 3",
+      "target_price": null
+    },
+    {
+      "game_id": 177485,
+      "title": "Celeste",
+      "target_price": null
+    },
+    {
+      "game_id": 172548,
+      "title": "Cuphead",
+      "target_price": null
+    },
+    {
+      "game_id": 202350,
+      "title": "Cyberpunk 2077",
+      "target_price": null
+    },
+    {
+      "game_id": 168685,
+      "title": "Dead Cells",
+      "target_price": null
+    },
+    {
+      "game_id": 227942,
+      "title": "Disco Elysium - The Final Cut",
+      "target_price": null
+    },
+    {
+      "game_id": 236717,
+      "title": "ELDEN RING",
+      "target_price": null
+    },
+    {
+      "game_id": 196149,
+      "title": "Hades",
+      "target_price": null
+    },
+    {
+      "game_id": 249998,
+      "title": "Hogwarts Legacy",
+      "target_price": null
+    },
+    {
       "game_id": 165363,
       "title": "Hollow Knight",
       "target_price": 10.0
@@ -10,6 +55,41 @@
       "game_id": 307927,
       "title": "Hollow Knight: Silksong",
       "target_price": 15.0
+    },
+    {
+      "game_id": 36,
+      "title": "Portal 2",
+      "target_price": null
+    },
+    {
+      "game_id": 206516,
+      "title": "Red Dead Redemption 2",
+      "target_price": null
+    },
+    {
+      "game_id": 175271,
+      "title": "Slay the Spire",
+      "target_price": null
+    },
+    {
+      "game_id": 150036,
+      "title": "Stardew Valley",
+      "target_price": null
+    },
+    {
+      "game_id": 140643,
+      "title": "Subnautica",
+      "target_price": null
+    },
+    {
+      "game_id": 39,
+      "title": "Terraria",
+      "target_price": null
+    },
+    {
+      "game_id": 112330,
+      "title": "The Witcher 3: Wild Hunt",
+      "target_price": null
     }
   ]
 }
