@@ -17,8 +17,22 @@ from game_tracker.web.app import create_app
 logger = logging.getLogger(__name__)
 
 
+def pull_cloud_prices(settings: Settings) -> None:
+    """Merge prices collected by GitHub Actions before the app starts (never fatal)."""
+    from game_tracker.sync import SyncError, sync_from_cloud
+
+    if not settings.sync_repo:
+        return
+    try:
+        report = sync_from_cloud(settings)
+        print(f"Cloud sync: {report.rows_added} new price rows for {report.games} game(s).")
+    except SyncError as exc:
+        print(f"Cloud sync skipped: {exc}")
+
+
 def run_server(settings: Settings, open_browser: bool = True) -> None:
     url = f"http://{settings.web_host}:{settings.web_port}/"
+    pull_cloud_prices(settings)
     with CheapSharkClient(settings.api_base_url, settings.http_timeout) as client:
         rates = ExchangeRateProvider(settings.fx_api_url, settings.http_timeout)
         try:

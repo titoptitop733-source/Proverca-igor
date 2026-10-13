@@ -39,7 +39,7 @@ deal compared to the game's history.
 | Data Science | pandas statistics and recommendation heuristic, matplotlib charts (PNG + Tkinter) |
 | Web backend | FastAPI REST API, Pydantic request/response models, OpenAPI docs at `/docs` |
 | User interface | web frontend (HTML/CSS/JavaScript, no build step), Tkinter desktop GUI |
-| Scripting / CLI | `argparse` CLI, configuration via `.env`, `pathlib` |
+| Scripting / automation | `argparse` CLI, configuration via `.env`, `pathlib`, `subprocess` (git), scheduled GitHub Actions workflow |
 
 ## Requirements
 
@@ -73,6 +73,9 @@ All settings live in `.env` (see `.env.example`). Nothing is hard-coded in the s
 | `GT_WEB_PORT` | `8000` | web server port |
 | `GT_CHARTS_DIR` | `data/charts` | where CLI charts are saved |
 | `GT_LOG_LEVEL` | `WARNING` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `GT_SYNC_REPO` | empty | `owner/repository` with the cloud collector (empty = off) |
+| `GT_SYNC_BRANCH` | `data` | branch with the cloud database |
+| `GT_SYNC_TOKEN` | empty | only for private repositories |
 
 ## Running
 
@@ -107,7 +110,40 @@ game-tracker stats 165363                  # statistics and recommendation
 game-tracker chart 165363 --open           # save a PNG chart and open it
 game-tracker target 165363 5
 game-tracker remove 165363
+game-tracker sync --push                   # merge cloud prices, publish wishlist.json
+game-tracker collect                       # what the GitHub workflow runs
 ```
+
+## Cloud price collection (GitHub Actions)
+
+Prices are only checked while DROPZONE runs. To collect them even when your computer is
+off, the workflow `.github/workflows/collect-prices.yml` checks prices **every 6 hours on
+GitHub** for free:
+
+```
+your computer                          GitHub
+-------------                          ------
+game-tracker sync --push  ---------->  data/wishlist.json on main (games + targets)
+                                       Actions, every 6 h: game-tracker collect
+game-tracker web / sync   <----------  game_tracker.db on the "data" branch
+(new snapshots are merged, nothing local is overwritten)
+```
+
+Setup (once):
+
+1. Push the project to GitHub (the workflow file must be on the `main` branch).
+2. In `.env` set `GT_SYNC_REPO=owner/repository` (for a private repository also
+   `GT_SYNC_TOKEN`, a fine-grained token with read access to *Contents*).
+3. Run `game-tracker sync --push` - this writes `data/wishlist.json` and pushes it.
+4. On GitHub open **Actions -> Collect prices -> Run workflow** for the first run.
+   Later runs start automatically. If the push step fails, enable
+   *Settings -> Actions -> General -> Workflow permissions -> Read and write*.
+
+After that, `game-tracker web` merges the cloud prices automatically on start; you can
+also run `game-tracker sync`. Whenever you add or remove games, run
+`game-tracker sync --push` so the cloud tracks the same list. The `data` branch always
+holds a single commit, so the repository does not grow. GitHub pauses scheduled
+workflows in repositories without any activity for 60 days.
 
 ## Basic usage (web)
 
@@ -171,6 +207,7 @@ src/game_tracker/
 ├── overview.py      # stored data + analysis, shared by all interfaces
 ├── service.py       # thread-safe facade for the GUI and the web API
 ├── charts.py        # matplotlib charts
+├── sync.py          # cloud collector: wishlist.json, download and merge of snapshots
 ├── config.py        # settings from environment / .env
 ├── cli.py           # command-line interface
 ├── ui/              # Tkinter desktop GUI

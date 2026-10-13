@@ -30,3 +30,12 @@ def test_zero_interval_is_allowed(monkeypatch):
     monkeypatch.setattr("game_tracker.config.load_dotenv", lambda: None)
     monkeypatch.setenv("GT_MIN_SNAPSHOT_INTERVAL_HOURS", "0")
     assert load_settings().min_snapshot_interval_hours == 0
+
+
+def test_sync_repo_is_validated(monkeypatch):
+    monkeypatch.setattr("game_tracker.config.load_dotenv", lambda: None)
+    monkeypatch.setenv("GT_SYNC_REPO", "not a repo")
+    with pytest.raises(ConfigError):
+        load_settings()
+    monkeypatch.setenv("GT_SYNC_REPO", "titoptitop733-source/Proverca-igor")
+    assert load_settings().sync_repo == "titoptitop733-source/Proverca-igor"

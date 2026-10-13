@@ -177,6 +177,51 @@ def cmd_stats(args: argparse.Namespace, ctx: AppContext) -> int:
     return 0
 
 
+def cmd_sync(args: argparse.Namespace, ctx: AppContext) -> int:
+    """Local side: merge prices collected in the cloud, publish the wishlist for the cloud."""
+    from game_tracker.sync import SyncError, export_wishlist, push_wishlist, sync_from_cloud, wishlist_path
+
+    status = 0
+    if ctx.settings.sync_repo:
+        try:
+            report = sync_from_cloud(ctx.settings)
+            print(f"Cloud: added {report.rows_added} price rows for {report.games} game(s).")
+        except SyncError as exc:
+            print(f"Cloud sync skipped: {exc}", file=sys.stderr)
+            status = 1
+    else:
+        print("GT_SYNC_REPO is not set - only the wishlist file is updated.")
+    path = wishlist_path(ctx.settings)
+    count = export_wishlist(ctx.storage, path)
+    print(f"Wrote {count} game(s) to {path}.")
+    if args.push:
+        try:
+            print(push_wishlist(path))
+        except SyncError as exc:
+            print(f"Push failed: {exc}", file=sys.stderr)
+            return 1
+    else:
+        print("Run 'game-tracker sync --push' (or commit the file) so the cloud tracks the same games.")
+    return status
+
+
+def cmd_collect(args: argparse.Namespace, ctx: AppContext) -> int:
+    """Cloud side (GitHub Actions): follow wishlist.json, then check prices."""
+    from game_tracker.sync import SyncError, apply_wishlist, read_wishlist_file
+
+    try:
+        entries = read_wishlist_file(args.wishlist)
+    except SyncError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+    applied = apply_wishlist(ctx.client, ctx.storage, entries)
+    print(f"Wishlist: {len(entries)} game(s), added {len(applied.added)}, "
+          f"removed {len(applied.removed)}, new targets {len(applied.retargeted)}.")
+    for game_id, reason in applied.failed.items():
+        print(f"  ! could not add game {game_id}: {reason}", file=sys.stderr)
+    return cmd_update(argparse.Namespace(force=False), ctx)
+
+
 def cmd_chart(args: argparse.Namespace, ctx: AppContext) -> int:
     overview = build_game_overview(ctx.storage, args.game_id)
     if overview is None:
@@ -244,6 +289,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--output", type=Path, help="output PNG path")
     p.add_argument("--open", action="store_true", help="open the chart after saving")
     p.set_defaults(handler=cmd_chart)
+
+    p = sub.add_parser("sync", help="merge prices collected in the cloud, export wishlist.json")
+    p.add_argument("--push", action="store_true", help="commit and push wishlist.json with git")
+    p.set_defaults(handler=cmd_sync)
+
+    p = sub.add_parser("collect", help="cloud collector: follow wishlist.json and check prices")
+    p.add_argument("--wishlist", type=Path, default=Path("data/wishlist.json"))
+    p.set_defaults(handler=cmd_collect)
 
     p = sub.add_parser("gui", help="open the desktop application (Tkinter)")
     p.set_defaults(handler=None)

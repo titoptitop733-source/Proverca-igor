@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,7 @@ DEFAULT_CHARTS_DIR = "data/charts"
 DEFAULT_HTTP_TIMEOUT = 10.0
 DEFAULT_MIN_SNAPSHOT_INTERVAL_HOURS = 6.0
 VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR"}
+REPO_PATTERN = re.compile(r"^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$")
 
 
 class ConfigError(Exception):
@@ -34,6 +36,9 @@ class Settings:
     fx_api_url: str = DEFAULT_FX_API_URL
     web_host: str = DEFAULT_WEB_HOST
     web_port: int = DEFAULT_WEB_PORT
+    sync_repo: str | None = None        # "owner/repository" with the cloud collector
+    sync_branch: str = "data"
+    sync_token: str | None = None       # only needed for private repositories
 
 
 def _read_float(name: str, default: float, *, allow_zero: bool = False) -> float:
@@ -64,6 +69,10 @@ def load_settings() -> Settings:
     if not 1 <= web_port <= 65535:
         raise ConfigError("GT_WEB_PORT must be between 1 and 65535")
 
+    sync_repo = os.getenv("GT_SYNC_REPO", "").strip() or None
+    if sync_repo and not REPO_PATTERN.match(sync_repo):
+        raise ConfigError("GT_SYNC_REPO must look like owner/repository")
+
     return Settings(
         api_base_url=os.getenv("GT_API_BASE_URL", DEFAULT_API_BASE_URL),
         db_path=Path(os.getenv("GT_DB_PATH", DEFAULT_DB_PATH)).expanduser(),
@@ -76,4 +85,7 @@ def load_settings() -> Settings:
         fx_api_url=os.getenv("GT_FX_API_URL", DEFAULT_FX_API_URL),
         web_host=os.getenv("GT_WEB_HOST", DEFAULT_WEB_HOST),
         web_port=web_port,
+        sync_repo=sync_repo,
+        sync_branch=os.getenv("GT_SYNC_BRANCH", "data").strip() or "data",
+        sync_token=os.getenv("GT_SYNC_TOKEN", "").strip() or None,
     )

@@ -194,6 +194,29 @@ class Storage:
             )
         return len(rows)
 
+    def snapshot_keys(self, game_id: int) -> set[tuple[str, int]]:
+        """(recorded_at, store_id) pairs already stored for a game - used to merge databases."""
+        rows = self._conn.execute(
+            "SELECT recorded_at, store_id FROM price_history WHERE game_id = ?", (game_id,)
+        ).fetchall()
+        return {(row["recorded_at"], row["store_id"]) for row in rows}
+
+    def insert_price_points(self, points: Iterable[PricePoint]) -> int:
+        """Insert price points as they are (with their original timestamps)."""
+        rows = [
+            (pt.game_id, pt.store_id, pt.price, pt.retail_price, pt.savings_percent,
+             pt.recorded_at.isoformat())
+            for pt in points
+        ]
+        with self._conn:
+            self._conn.executemany(
+                "INSERT INTO price_history "
+                "(game_id, store_id, price, retail_price, savings_percent, recorded_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+        return len(rows)
+
     def last_snapshot_at(self, game_id: int) -> datetime | None:
         row = self._conn.execute(
             "SELECT MAX(recorded_at) AS last FROM price_history WHERE game_id = ?",
