@@ -179,7 +179,13 @@ def cmd_stats(args: argparse.Namespace, ctx: AppContext) -> int:
 
 def cmd_sync(args: argparse.Namespace, ctx: AppContext) -> int:
     """Local side: merge prices collected in the cloud, publish the wishlist for the cloud."""
-    from game_tracker.sync import SyncError, export_wishlist, push_wishlist, sync_from_cloud, wishlist_path
+    from game_tracker.sync import (
+        SyncError,
+        export_wishlist,
+        push_wishlist,
+        sync_from_cloud,
+        wishlist_path,
+    )
 
     status = 0
     if ctx.settings.sync_repo:
@@ -201,7 +207,8 @@ def cmd_sync(args: argparse.Namespace, ctx: AppContext) -> int:
             print(f"Push failed: {exc}", file=sys.stderr)
             return 1
     else:
-        print("Run 'game-tracker sync --push' (or commit the file) so the cloud tracks the same games.")
+        print("Run 'game-tracker sync --push' (or commit the file) "
+              "so the cloud tracks the same games.")
     return status
 
 
@@ -312,7 +319,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "gui":
-        from game_tracker.ui.app import main as gui_main  # Tkinter is loaded only when needed
+        from game_tracker.ui.app import (
+            main as gui_main,  # Tkinter is loaded only when needed
+        )
 
         return gui_main()
 

@@ -131,7 +131,8 @@ def push_wishlist(path: Path = DEFAULT_WISHLIST_FILE) -> str:
         git("add", str(path)).check_returncode()
         if git("diff", "--cached", "--quiet", "--", str(path)).returncode == 0:
             return "Wishlist file is unchanged - nothing to push."
-        git("commit", "-m", "Update tracked games for the cloud collector", "--", str(path)).check_returncode()
+        message = "Update tracked games for the cloud collector"
+        git("commit", "-m", message, "--", str(path)).check_returncode()
         pushed = git("push", "origin", "HEAD")
     except FileNotFoundError as exc:
         raise SyncError("git is not installed or not on PATH") from exc

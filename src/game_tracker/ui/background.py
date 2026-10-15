@@ -6,11 +6,10 @@ task is collected by polling with `after()` and callbacks run in the main thread
 
 from __future__ import annotations
 
+import tkinter as tk
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TypeVar
-
-import tkinter as tk
 
 T = TypeVar("T")
 

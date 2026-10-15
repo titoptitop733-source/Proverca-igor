@@ -7,7 +7,14 @@ from fastapi.testclient import TestClient
 
 from game_tracker.api_client import ApiError
 from game_tracker.config import Settings
-from game_tracker.models import Deal, DealListing, ExchangeRates, GameDetails, GameSearchResult, Store
+from game_tracker.models import (
+    Deal,
+    DealListing,
+    ExchangeRates,
+    GameDetails,
+    GameSearchResult,
+    Store,
+)
 from game_tracker.service import TrackerService
 from game_tracker.web.app import create_app
 
@@ -104,7 +111,8 @@ def test_unknown_game_returns_502_from_upstream(client):
 
 def test_set_target_and_remove(client):
     client.post("/api/wishlist", json={"game_id": 2})
-    assert client.put("/api/wishlist/2/target", json={"target_price": 3}).json()["target_price"] == 3
+    updated = client.put("/api/wishlist/2/target", json={"target_price": 3}).json()
+    assert updated["target_price"] == 3
     assert client.delete("/api/wishlist/2").status_code == 204
     assert client.delete("/api/wishlist/2").status_code == 404
     assert client.get("/api/games/2").status_code == 404

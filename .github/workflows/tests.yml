@@ -1,0 +1,36 @@
+# Runs on every push: code style (ruff), type check (mypy) and the test suite (pytest).
+# None of the tests use the network, so this workflow needs no secrets.
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Code style (ruff)
+        run: ruff check src tests
+
+      - name: Type check (mypy)
+        run: mypy src/game_tracker
+
+      - name: Tests (pytest)
+        run: pytest -q

@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import logging
 import sys
-
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
+from typing import Literal
 
-from game_tracker.analysis import Verdict
 from game_tracker.api_client import CheapSharkClient
 from game_tracker.collector import UpdateReport
 from game_tracker.config import ConfigError, load_settings
@@ -26,7 +25,7 @@ from game_tracker.ui.formatting import (
 )
 from game_tracker.ui.search_dialog import SearchDialog
 
-WISHLIST_COLUMNS = {
+WISHLIST_COLUMNS: dict[str, tuple[str, int, Literal["w", "e", "center"]]] = {
     "title": ("Title", 240, "w"),
     "best": ("Best now", 80, "e"),
     "target": ("Target", 70, "e"),

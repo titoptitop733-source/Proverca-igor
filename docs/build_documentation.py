@@ -3,15 +3,16 @@
 Usage (from the project root, with the virtual environment activated):
 
     pip install -e ".[docs]"
-    python docs/build_documentation.py
+    python docs/build_documentation.py --author "Meno Priezvisko"
 
-Edit AUTHOR / ACADEMIC_YEAR below and replace screenshots in docs/img/ with your own,
-then run the script again. The text is in Slovak (language of the course).
+Optional: --year "2026/2027" and --repo URL. To refresh the screenshots from your own
+running application first, see docs/take_screenshots.py. The text is in Slovak (the
+language of the course).
 """
 
 from __future__ import annotations
 
-import sys
+import argparse
 from pathlib import Path
 
 import matplotlib
@@ -42,7 +43,8 @@ from reportlab.platypus import (  # noqa: E402
 )
 from reportlab.platypus.tableofcontents import TableOfContents  # noqa: E402
 
-# ---------------------------------------------------------------------- edit these
+# ---------------------------------------------------------------------- defaults
+# Normally set on the command line (--author, --year, --repo), not here.
 AUTHOR = "Meno Priezvisko"
 ACADEMIC_YEAR = "2026/2027"
 PROJECT_TITLE = "DROPZONE – sledovanie cien PC hier"
@@ -63,29 +65,22 @@ LINE = colors.HexColor("#c9ced6")
 # ---------------------------------------------------------------------- fonts
 
 def register_fonts() -> tuple[str, str, str]:
-    """Find a TrueType font with Slovak diacritics (Linux DejaVu or Windows Arial)."""
-    candidates = [
-        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"),
-        ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/consola.ttf"),
-        ("C:/Windows/Fonts/segoeui.ttf", "C:/Windows/Fonts/segoeuib.ttf", "C:/Windows/Fonts/cour.ttf"),
-        ("/System/Library/Fonts/Supplemental/Arial.ttf",
-         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-         "/System/Library/Fonts/Supplemental/Courier New.ttf"),
-    ]
-    for regular, bold, mono in candidates:
-        if Path(regular).is_file() and Path(bold).is_file():
-            pdfmetrics.registerFont(TTFont("Body", regular))
-            pdfmetrics.registerFont(TTFont("Body-Bold", bold))
-            pdfmetrics.registerFontFamily("Body", normal="Body", bold="Body-Bold",
-                                          italic="Body", boldItalic="Body-Bold")
-            mono_name = "Courier"
-            if Path(mono).is_file():
-                pdfmetrics.registerFont(TTFont("Mono", mono))
-                mono_name = "Mono"
-            return "Body", "Body-Bold", mono_name
-    sys.exit("No TrueType font with Slovak characters found (tried DejaVu and Arial).")
+    """Register the DejaVu fonts that ship with matplotlib (they contain Slovak diacritics).
+
+    Using the bundled files means no operating-system font paths are needed.
+    """
+    fonts = Path(matplotlib.get_data_path()) / "fonts" / "ttf"
+    for name, filename in (
+        ("Body", "DejaVuSans.ttf"),
+        ("Body-Bold", "DejaVuSans-Bold.ttf"),
+        ("Body-Italic", "DejaVuSans-Oblique.ttf"),
+        ("Body-BoldItalic", "DejaVuSans-BoldOblique.ttf"),
+        ("Mono", "DejaVuSansMono.ttf"),
+    ):
+        pdfmetrics.registerFont(TTFont(name, str(fonts / filename)))
+    pdfmetrics.registerFontFamily("Body", normal="Body", bold="Body-Bold",
+                                  italic="Body-Italic", boldItalic="Body-BoldItalic")
+    return "Body", "Body-Bold", "Mono"
 
 
 BODY, BOLD, MONO = register_fonts()
@@ -97,9 +92,9 @@ STYLES = {
                                alignment=TA_CENTER, textColor=GREY),
     "center": ParagraphStyle("center", fontName=BODY, fontSize=12, leading=18, alignment=TA_CENTER),
     "h1": ParagraphStyle("h1", fontName=BOLD, fontSize=17, leading=22, textColor=DARK,
-                         spaceBefore=6, spaceAfter=10),
+                         spaceBefore=6, spaceAfter=10, keepWithNext=1),
     "h2": ParagraphStyle("h2", fontName=BOLD, fontSize=12.5, leading=17, textColor=ACCENT,
-                         spaceBefore=10, spaceAfter=5),
+                         spaceBefore=10, spaceAfter=5, keepWithNext=1),
     "body": ParagraphStyle("body", fontName=BODY, fontSize=10.3, leading=15, alignment=TA_JUSTIFY,
                            spaceAfter=6),
     "bullet": ParagraphStyle("bullet", fontName=BODY, fontSize=10.3, leading=14.5, leftIndent=14,
@@ -110,9 +105,10 @@ STYLES = {
                               alignment=TA_CENTER, spaceBefore=3, spaceAfter=10),
     "code": ParagraphStyle("code", fontName=MONO, fontSize=8.2, leading=10.8, backColor=LIGHT,
                            borderPadding=6, leftIndent=6, rightIndent=6, spaceBefore=4, spaceAfter=10),
-    "toc1": ParagraphStyle("toc1", fontName=BODY, fontSize=10.5, leading=17),
-    "toc2": ParagraphStyle("toc2", fontName=BODY, fontSize=9.5, leading=14, leftIndent=16,
-                           textColor=GREY),
+    "toc1": ParagraphStyle("toc1", fontName=BOLD, fontSize=9.6, leading=12.5, spaceBefore=0,
+                           spaceAfter=0),
+    "toc2": ParagraphStyle("toc2", fontName=BODY, fontSize=8.6, leading=10.8, leftIndent=16,
+                           spaceBefore=0, spaceAfter=0, textColor=GREY),
 }
 
 FIG = {"n": 0}
@@ -152,7 +148,13 @@ def code(text: str) -> Preformatted:
     return Preformatted(text.strip("\n"), STYLES["code"])
 
 
-def table(rows: list[list[str]], widths: list[float], caption: str | None = None) -> KeepTogether:
+def table(rows: list[list[str]], widths: list[float], caption: str | None = None,
+          keep: bool = True):
+    """Table with a numbered caption.
+
+    Short tables are kept on one page; pass keep=False for long ones, which may then
+    continue on the next page (the header row is repeated).
+    """
     data = [[Paragraph(cell, STYLES["cellb" if r == 0 else "cell"]) for cell in row]
             for r, row in enumerate(rows)]
     t = Table(data, colWidths=[w * cm for w in widths], repeatRows=1)
@@ -168,7 +170,16 @@ def table(rows: list[list[str]], widths: list[float], caption: str | None = None
     if caption:
         TAB["n"] += 1
         parts.append(Paragraph(f"Tabuľka {TAB['n']}: {caption}", STYLES["caption"]))
-    return KeepTogether(parts)
+    return KeepTogether(parts) if keep else parts
+
+
+def flatten(items):
+    """Section functions may contain nested lists (tables that are allowed to split)."""
+    for item in items:
+        if isinstance(item, (list, tuple)):
+            yield from flatten(item)
+        else:
+            yield item
 
 
 def figure(name: str, caption: str, width_cm: float = 16.0) -> KeepTogether:
@@ -205,15 +216,13 @@ def build_architecture_diagram(path: Path) -> None:
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 66)
     ax.axis("off")
-    cols = {"A": (8, 26), "B": (40, 26), "C": (72, 26)}   # x, width
 
-    def box(col, y, title, sub, face, h=7.5, x=None, w=None):
-        bx, bw = (x, w) if x is not None else cols[col]
-        ax.add_patch(FancyBboxPatch((bx, y), bw, h, boxstyle="round,pad=0.35,rounding_size=1.1",
+    def box(x, y, w, title, sub, face, h=7.5):
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.35,rounding_size=1.1",
                                     linewidth=1.1, edgecolor="#2a2f38", facecolor=face))
-        ax.text(bx + bw / 2, y + h / 2 + 1.3, title, ha="center", va="center", fontsize=10,
+        ax.text(x + w / 2, y + h / 2 + 1.3, title, ha="center", va="center", fontsize=9.5,
                 fontweight="bold", color="#16191f")
-        ax.text(bx + bw / 2, y + h / 2 - 1.8, sub, ha="center", va="center", fontsize=8,
+        ax.text(x + w / 2, y + h / 2 - 1.8, sub, ha="center", va="center", fontsize=7.6,
                 color="#3c434d")
 
     def arrow(x1, y1, x2, y2, label=""):
@@ -227,27 +236,29 @@ def build_architecture_diagram(path: Path) -> None:
         ax.text(0, y, label, fontsize=8.5, color="#5b6370", rotation=90, va="center", ha="left")
 
     ui, app, dom, data = "#e8f5d6", "#e6ebff", "#f1f2f4", "#fff2df"
-    box("A", 55, "Webový frontend", "HTML/CSS/JS v prehliadači", ui)
-    box("B", 55, "Desktop GUI", "Tkinter (ui/)", ui)
-    box("C", 55, "CLI", "argparse (cli.py)", ui)
-    box("A", 42.5, "REST API", "FastAPI + Pydantic (web/)", ui)
-    box(None, 30, "service.py  ·  overview.py  ·  insights.py",
-        "spoločná logika pre všetky tri rozhrania", app, x=8, w=90)
-    box("A", 17.5, "collector.py", "pridanie hry, aktualizácia cien", dom)
-    box("B", 17.5, "analysis.py · charts.py", "pandas štatistiky, matplotlib", dom)
-    box("A", 4, "storage.py", "SQLite databáza", data)
-    box("B", 4, "api_client.py", "CheapShark API (ceny)", data)
-    box("C", 4, "currency.py", "Frankfurter API (kurzy ECB)", data)
+    box(8, 55, 26, "Webový frontend", "HTML/CSS/JS v prehliadači", ui)
+    box(40, 55, 26, "Desktop GUI", "Tkinter (ui/)", ui)
+    box(72, 55, 26, "CLI", "argparse (cli.py)", ui)
+    box(8, 42.5, 26, "REST API", "FastAPI + Pydantic (web/)", ui)
+    box(8, 30, 90, "service.py  ·  overview.py  ·  insights.py",
+        "spoločná logika pre všetky tri rozhrania", app)
+    box(8, 17.5, 26, "collector.py", "pridanie hry, aktualizácia cien", dom)
+    box(40, 17.5, 22, "analysis · charts", "pandas, matplotlib", dom)
+    box(8, 4, 20, "storage.py", "SQLite databáza", data)
+    box(31, 4, 20, "api_client.py", "CheapShark API (ceny)", data)
+    box(54, 4, 20, "currency.py", "Frankfurter API (ECB)", data)
+    box(77, 4, 21, "sync.py", "GitHub Actions (cloud)", data)
 
     arrow(21, 55, 21, 50.3, "HTTP / JSON")
     arrow(21, 42.5, 21, 38.2)
     arrow(53, 55, 53, 38.2)
     arrow(85, 55, 85, 38.2)
     arrow(21, 30, 21, 25.3)
-    arrow(53, 30, 53, 25.3)
-    arrow(85, 30, 85, 11.8)
-    arrow(21, 17.5, 21, 11.8)
-    arrow(30, 17.5, 46, 11.8)
+    arrow(51, 30, 51, 25.3)
+    arrow(64, 30, 64, 11.8)
+    arrow(87, 30, 87, 11.8)
+    arrow(18, 17.5, 18, 11.8)
+    arrow(30, 17.5, 40, 11.8)
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
@@ -277,6 +288,7 @@ def title_page() -> list:
 def contents() -> list:
     toc = TableOfContents()
     toc.levelStyles = [STYLES["toc1"], STYLES["toc2"]]
+    toc.dotsMinLevel = 0
     return [Paragraph("Obsah", STYLES["h1"].clone("toc_title")), toc, PageBreak()]
 
 
@@ -299,7 +311,8 @@ def section_intro() -> list:
         p("Hlavným cieľom bolo vytvoriť aplikáciu, ktorá pracuje s <b>reálnymi dátami</b> "
           "(nie s ukážkovými), dá sa spustiť na inom počítači iba podľa README, bez API kľúčov, "
           "a ktorej odporúčania sú vysvetliteľné a overiteľné – aplikácia vždy uvádza dôvody, "
-          "prečo odporúča kúpiť alebo počkať."),
+          "prečo odporúča kúpiť alebo počkať. Ceny sa zbierajú automaticky aj v cloude "
+          "(GitHub Actions), takže história vzniká aj vtedy, keď je počítač vypnutý."),
     ]
 
 
@@ -316,6 +329,8 @@ def section_requirements() -> list:
             "prehľad (dashboard) s potenciálnou úsporou, poklesmi cien a históriou udalostí,",
             "stránka <i>Discover</i> s aktuálnymi zľavami, filtrami (obchod, cena, zľava) a triedením,",
             "zobrazenie cien v USD, EUR alebo GBP podľa aktuálnych kurzov ECB,",
+            "automatický zber cien v cloude každých 6 hodín (GitHub Actions) a jeho zlúčenie s lokálnou databázou,",
+            "tmavá a svetlá téma (alebo podľa systému),",
             "tri rozhrania nad spoločnou logikou: webová aplikácia, desktopová aplikácia a CLI.",
         ]),
         h2("2.2 Nefunkčné požiadavky"),
@@ -345,7 +360,8 @@ def section_requirements() -> list:
             ["Dáta", "wishlist, snímky cien", "+ obrázky hier, ponuky obchodov, kurzy mien"],
             ["Analýza", "–", "štatistiky (pandas), odporúčanie, grafy, dashboard"],
             ["Externé API", "CheapShark (vyhľadávanie, ceny)", "+ CheapShark deals, Frankfurter (kurzy)"],
-            ["Testy", "20 testov", "92 testov"],
+            ["Automatizácia", "ručné spustenie príkazu", "GitHub Actions každých 6 h, synchronizácia"],
+            ["Kvalita", "20 testov", "107 testov, ruff, mypy"],
         ], [3.2, 5.6, 7.7], "Porovnanie MVP a finálnej verzie"),
     ]
 
@@ -378,13 +394,26 @@ def section_design() -> list:
             "Ak najlepšia cena dosiahla cieľovú cenu, vznikne upozornenie (PriceAlert).",
             "Chyba pri jednej hre nezastaví aktualizáciu ostatných – zapíše sa do výsledného reportu.",
         ]),
+        h2("3.3 Zber cien v cloude"),
+        p("Ceny sa zaznamenávajú len vtedy, keď aplikácia beží. Aby história vznikala aj bez zapnutého "
+          "počítača, kontroluje ceny aj plánovaný workflow GitHub Actions. Každý údaj má práve jedného "
+          "vlastníka, preto medzi počítačom a cloudom nevznikajú konflikty:"),
+        table([
+            ["Krok", "Kde", "Čo sa deje"],
+            ["1", "počítač", "<font name='%s'>game-tracker sync --push</font> zapíše sledované hry a cieľové ceny "
+             "do <i>data/wishlist.json</i> a odošle súbor do repozitára" % MONO],
+            ["2", "GitHub Actions", "každých 6 h: <font name='%s'>game-tracker collect</font> prečíta wishlist.json, "
+             "obnoví databázu z vetvy <i>data</i> a skontroluje ceny" % MONO],
+            ["3", "GitHub", "databáza sa uloží ako jediný commit vo vetve <i>data</i>, repozitár preto nerastie"],
+            ["4", "počítač", "<font name='%s'>game-tracker web</font> pri štarte stiahne databázu a zlúči chýbajúce snímky" % MONO],
+        ], [1.2, 3.3, 12.0], "Tok dát medzi počítačom a cloudom"),
     ]
 
 
 def section_technologies() -> list:
     return [
         h1("4 Použité technológie"),
-        p("Projekt kombinuje šesť technologických oblastí predmetu. Každá rieši konkrétnu časť "
+        p("Projekt kombinuje šesť technologických oblastí predmetu (ďalej testovanie a kontrolu kvality). Každá rieši konkrétnu časť "
           "problému, ako ukazuje nasledujúca tabuľka."),
         table([
             ["Oblasť", "Knižnica", "Účel v projekte", "Prečo"],
@@ -398,10 +427,12 @@ def section_technologies() -> list:
              "validácia vstupov, automatická dokumentácia OpenAPI (/docs)"],
             ["Používateľské rozhranie", "HTML/CSS/JS, Tkinter", "webová a desktopová aplikácia",
              "web bez build kroku (netreba Node.js); Tkinter je súčasť Pythonu"],
-            ["Skriptovanie", "argparse, pathlib, python-dotenv", "CLI, konfigurácia, cesty",
-             "konfigurácia mimo kódu, prenositeľné cesty"],
-            ["Testovanie", "pytest", "92 automatických testov", "fixtures, tmp_path, monkeypatch"],
-        ], [3.0, 3.2, 4.4, 5.9], "Technologické oblasti a ich použitie"),
+            ["Skriptovanie a automatizácia", "argparse, pathlib, subprocess, GitHub Actions",
+             "CLI, konfigurácia, git push wishlistu, plánovaný zber cien",
+             "konfigurácia mimo kódu; zber cien bez zapnutého počítača"],
+            ["Kvalita kódu", "pytest, ruff, mypy", "107 testov, štýl, kontrola typov",
+             "fixtures, tmp_path, monkeypatch; type hints overené nástrojom"],
+        ], [3.0, 3.4, 4.5, 5.6], "Technologické oblasti a ich použitie", keep=False),
         p("Závislosti sú uvedené v súbore <font name='%s'>pyproject.toml</font> a inštalujú sa jedným "
           "príkazom <font name='%s'>pip install -e \".[dev]\"</font>." % (MONO, MONO)),
     ]
@@ -421,11 +452,12 @@ def section_implementation() -> list:
             ["analysis.py", "štatistiky cez pandas a pravidlá odporúčania"],
             ["insights.py", "stav cieľovej ceny, udalosti (pokles, nové minimum), súhrn dashboardu"],
             ["overview.py, service.py", "spojenie dát a analýzy; fasáda pre GUI a web, bezpečná pre vlákna"],
+            ["sync.py", "zber v cloude: wishlist.json, stiahnutie a zlúčenie databázy, git push"],
             ["web/app.py, schemas.py", "FastAPI aplikácia, endpointy, Pydantic modely požiadaviek a odpovedí"],
             ["web/static/", "frontend: index.html, css/app.css, js/ (ES moduly, vlastné SVG grafy)"],
             ["ui/", "Tkinter aplikácia, beh HTTP požiadaviek mimo hlavného vlákna"],
             ["cli.py, config.py", "príkazový riadok, načítanie a validácia konfigurácie"],
-        ], [4.2, 12.3], "Hlavné moduly (src/game_tracker)"),
+        ], [4.2, 12.3], "Hlavné moduly (src/game_tracker)", keep=False),
         h2("5.2 Dátový model"),
         p("Databáza má tri tabuľky. Každé spustenie aktualizácie vytvorí pre hru jednu <i>snímku</i> – "
           "skupinu riadkov v <i>price_history</i> s rovnakým časom <i>recorded_at</i>, jeden riadok pre každý obchod."),
@@ -480,7 +512,7 @@ SELECT ... FROM (
             ["POST /api/update", "kontrola cien {force}", "200"],
             ["GET /api/search, /api/deals", "vyhľadávanie hier, aktuálne zľavy s filtrami", "200, 422, 502"],
             ["GET /api/stores, /api/meta", "obchody; verzia, kurzy mien, zdroje dát", "200"],
-        ], [5.0, 8.3, 3.2], "Endpointy REST API (ceny sú v USD)"),
+        ], [5.0, 8.3, 3.2], "Endpointy REST API (ceny sú v USD)", keep=False),
         p("Chybu externého API mapuje handler na kód 502 s textom chyby, neplatný vstup odmietne "
           "Pydantic kódom 422. Frontend tieto správy zobrazuje používateľovi."),
         h2("5.6 Webové rozhranie"),
@@ -498,13 +530,22 @@ SELECT ... FROM (
           "(modul <i>ui/background.py</i>). Kurzy mien drží <i>currency.py</i> v pamäti 12 hodín; "
           "prístup chráni zámok, pretože web server obsluhuje požiadavky paralelne. Ak služba "
           "nie je dostupná, použijú sa posledné známe kurzy, prípadne iba USD." % MONO),
+        h2("5.8 Synchronizácia s cloudom (sync.py)"),
+        p("Workflow <i>.github/workflows/collect-prices.yml</i> beží každých 6 hodín (aj ručne cez tlačidlo "
+          "<i>Run workflow</i>). Zoznam hier berie zo súboru <i>wishlist.json</i>, databázu obnoví z vetvy "
+          "<i>data</i>, skontroluje ceny a databázu uloží späť ako jediný commit. Lokálna strana "
+          "stiahne súbor <i>game_tracker.db</i> a funkcia <font name='%s'>merge_remote_database</font> "
+          "pridá iba snímky, ktoré lokálna databáza ešte nemá. Snímka sa identifikuje dvojicou "
+          "(čas, obchod), takže zlúčenie je <b>idempotentné</b> – opakovaný beh nič nezmení a lokálne "
+          "záznamy sa nikdy neprepíšu ani nezmažú. Stiahnutý súbor sa overuje (hlavička SQLite, "
+          "limit veľkosti 50 MB) skôr, než sa použije." % MONO),
     ]
 
 
 def section_testing() -> list:
     return [
         h1("6 Testovanie a robustnosť"),
-        p("Projekt obsahuje 92 automatických testov (pytest). Žiadny test nepoužíva internet: "
+        p("Projekt obsahuje 107 automatických testov (pytest). Žiadny test nepoužíva internet: "
           "externé API nahrádza <font name='%s'>httpx.MockTransport</font> alebo falošný zdroj dát, "
           "databáza vzniká v dočasnom adresári (<font name='%s'>tmp_path</font>) a REST API sa testuje "
           "cez <font name='%s'>TestClient</font> z FastAPI." % (MONO, MONO, MONO)),
@@ -514,11 +555,12 @@ def section_testing() -> list:
             ["test_storage.py", "12", "wishlist, snímky, najlepšia cena, kaskádové mazanie, migrácia, SQL injection"],
             ["test_analysis.py", "10", "štatistiky a všetky vetvy odporúčania vrátane hry zadarmo"],
             ["test_collector.py", "7", "interval snímok, --force, upozornenia, zlyhanie jednej hry"],
+            ["test_sync.py", "14", "wishlist.json, zlúčenie snímok (idempotencia), sťahovanie, neplatný súbor"],
             ["test_web_api.py", "16", "endpointy, stavové kódy 201/204/404/409/422/502, validácia"],
             ["test_insights.py", "5", "stav cieľa, udalosti, súhrn dashboardu"],
             ["test_currency.py", "5", "kurzy, cache a jej expirácia, výpadok služby"],
-            ["ostatné (6 súborov)", "26", "konfigurácia, služba, grafy, formátovanie GUI, súbory frontendu"],
-        ], [4.0, 1.4, 11.1], "Prehľad automatických testov"),
+            ["ostatné (5 súborov)", "27", "konfigurácia, služba, grafy, formátovanie GUI, súbory frontendu"],
+        ], [4.0, 1.4, 11.1], "Prehľad automatických testov", keep=False),
         h2("6.1 Chybové situácie"),
         table([
             ["Situácia", "Správanie aplikácie"],
@@ -529,9 +571,18 @@ def section_testing() -> list:
             ["neplatný vstup (záporná cena, text)", "odmietnutie vo frontende aj v API (422)"],
             ["pridanie už sledovanej hry", "kód 409, frontend ukáže stav „Tracked“"],
             ["stará databáza z verzie 0.1", "automatická migrácia, údaje sa zachovajú"],
+            ["cloudová databáza chýba alebo je poškodená", "zrozumiteľná správa, lokálne dáta sa nezmenia"],
             ["chýbajúci obrázok hry", "náhradný obrázok, potom názov hry"],
         ], [6.0, 10.5], "Ošetrenie chybových situácií"),
-        h2("6.2 Manuálne overenie"),
+        h2("6.2 Kvalita kódu"),
+        p("Kvalitu kódu kontrolujú dva nástroje, nastavené v <i>pyproject.toml</i>. "
+          "<font name='%s'>ruff check src tests</font> (pravidlá E, F, W, I, B, UP) hlási "
+          "<i>All checks passed</i>; <font name='%s'>mypy src/game_tracker</font> hlási "
+          "<i>no issues found in 27 source files</i>. Type hints sú použité v celom verejnom API "
+          "projektu. Pri kontrole sa našlo napríklad nesprávne ošetrenie hodnoty None v súhrne "
+          "dashboardu, ktoré sa opravilo. Rovnaké tri kontroly (ruff, mypy, pytest) bežia automaticky pri "
+          "každom pushi v GitHub Actions (workflow <i>tests.yml</i>)." % (MONO, MONO)),
+        h2("6.3 Manuálne overenie"),
         p("Webové rozhranie bolo overené v prehliadači týmito scenármi: pridanie hry cez modálne okno "
           "aj globálne vyhľadávanie, zamedzenie duplicity, uloženie cieľovej ceny (aj s desatinnou "
           "čiarkou), odmietnutie neplatnej ceny, prepínanie rozsahu grafu a tooltip, filtre, "
@@ -553,7 +604,10 @@ def section_security() -> list:
             "dĺžka hľadaného textu), CLI a GUI majú vlastnú validáciu.",
             "<b>XSS</b> – text z externých API sa vo frontende vždy escapuje; obrázky sa prijímajú "
             "iba z adries https.",
-            "<b>Secrets</b> – projekt nepotrebuje API kľúče; konfigurácia je v .env, ktorý je v .gitignore.",
+            "<b>Secrets</b> – projekt nepotrebuje API kľúče; konfigurácia je v .env, ktorý je v .gitignore. "
+            "Voliteľný token pre súkromný repozitár (GT_SYNC_TOKEN) žije iba tam.",
+            "<b>Cloud</b> – workflow používa iba vstavaný GITHUB_TOKEN s právom zápisu do repozitára; "
+            "stiahnutá databáza sa pred použitím overuje a zlučuje sa iba pridávaním chýbajúcich riadkov.",
             "<b>Externé služby</b> – každá HTTP požiadavka má timeout; odpovede sa validujú.",
             "<b>Súborový systém</b> – cesty cez pathlib, relatívne voči projektu, žiadne absolútne cesty v kóde.",
         ]),
@@ -569,7 +623,9 @@ def section_usage() -> list:
 python -m venv .venv
 .venv\\Scripts\\activate            # Linux/macOS: source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                             # 92 passed
+pytest                             # 107 passed
+ruff check src tests               # All checks passed
+mypy src/game_tracker              # Success: no issues found
 game-tracker web                   # otvorí http://127.0.0.1:8000
 """),
         p("Nastavenia (port, interval kontroly cien, cesta k databáze, URL API) sú v súbore .env – "
@@ -578,12 +634,13 @@ game-tracker web                   # otvorí http://127.0.0.1:8000
         h2("8.2 Webová aplikácia"),
         p("Prehľad (Overview) zobrazuje súhrnné čísla, hru s najväčšou zľavou, sledované hry a "
           "posledné zmeny cien. Hru pridáte tlačidlom <i>Track a game</i>."),
-        figure("web_overview.png", "Prehľad – dashboard (ukážkové dáta)"),
-        figure("web_game.png", "Detail hry – graf ceny, porovnanie obchodov, odporúčanie a cieľová cena"),
-        figure("web_wishlist.png", "Wishlist – vyhľadávanie, filtre, triedenie a stav cieľovej ceny"),
-        figure("web_discover.png", "Discover – aktuálne zľavy s filtrami", 14.5),
+        figure("web_overview.png", "Prehľad – dashboard", 12.5),
+        figure("web_game.png", "Detail hry – graf ceny, porovnanie obchodov, odporúčanie a cieľová cena", 12.5),
+        figure("web_game_light.png", "Rovnaký detail v svetlej téme (prepínač v hornej lište)", 11.5),
+        figure("web_wishlist.png", "Wishlist – vyhľadávanie, filtre, triedenie a stav cieľovej ceny", 12.5),
+        figure("web_discover.png", "Discover – aktuálne zľavy s filtrami", 11.5),
         h2("8.3 Desktopová aplikácia a CLI"),
-        figure("desktop_gui.png", "Desktopová aplikácia (Tkinter)", 14.5),
+        figure("desktop_gui.png", "Desktopová aplikácia (Tkinter)", 11.5),
         code("""
 game-tracker search "hollow knight"     # vyhľadanie hry a jej ID
 game-tracker add 165363 --target 10     # sledovanie s cieľovou cenou (USD)
@@ -592,6 +649,12 @@ game-tracker update                     # kontrola cien (--force ignoruje interv
 game-tracker stats 165363               # štatistiky a odporúčanie
 game-tracker chart 165363 --open        # graf ako PNG
 """),
+        h2("8.4 Zber cien v cloude"),
+        p("Jednorazové nastavenie: v súbore .env nastaviť <font name='%s'>GT_SYNC_REPO=vlastník/repozitár</font>, "
+          "spustiť <font name='%s'>game-tracker sync --push</font> a na GitHube v záložke Actions spustiť "
+          "workflow <i>Collect prices</i>. Ďalej sa ceny zbierajú automaticky a "
+          "<font name='%s'>game-tracker web</font> ich pri štarte zlúči s lokálnou databázou. Po pridaní alebo "
+          "odstránení hier treba znova spustiť <font name='%s'>sync --push</font>." % (MONO, MONO, MONO, MONO)),
     ]
 
 
@@ -606,6 +669,10 @@ def section_lessons() -> list:
           "paralelne, pričom spojenie sqlite3 sa nesmie zdieľať medzi vláknami. Ďalej som sa naučil "
           "písať testy, ktoré nezávisia od internetu (mockovanie HTTP, vkladanie závislostí), a "
           "navrhnúť <b>migráciu databázy</b>, aby používateľ pri aktualizácii nestratil dáta."),
+        p("Zaujímavým problémom bola <b>synchronizácia s cloudom</b>. Obojsmerné kopírovanie databázy by "
+          "viedlo ku konfliktom, preto som určil jedného vlastníka každého údaju: zoznam hier posiela "
+          "počítač (wishlist.json), nové ceny posiela cloud a lokálne sa iba pridávajú. Zlúčenie som "
+          "navrhol idempotentne, aby sa dalo bezpečne spúšťať opakovane."),
         p("Zaujímavou chybou bolo, že hry pridané v prvej verzii nemali historické minimum, a keďže "
           "aktualizácia hry s čerstvou snímkou sa preskakovala, odporúčanie zostávalo nesprávne. "
           "Opravil som to a pridal regresný test."),
@@ -620,7 +687,8 @@ def section_limits() -> list:
         h1("10 Obmedzenia a možné rozšírenia"),
         h2("10.1 Obmedzenia"),
         *bullets([
-            "ceny sa zaznamenávajú iba vtedy, keď aplikácia beží (alebo pri spustení príkazu update),",
+            "ceny sa zbierajú každých 6 hodín; GitHub môže spustenie oneskoriť o niekoľko minút a "
+            "plánované workflow v repozitári bez aktivity po 60 dňoch pozastaví,",
             "história je krátka – pokrýva iba čas sledovania, preto sa kombinuje s minimom z CheapShark,",
             "CheapShark pokrýva PC obchody a ceny v USD; prepočet na EUR je orientačný (kurz ECB, nie cena obchodu),",
             "upozornenia sa zobrazujú iba v aplikácii (bez e-mailu alebo push notifikácií),",
@@ -628,7 +696,7 @@ def section_limits() -> list:
         ]),
         h2("10.2 Možné rozšírenia"),
         *bullets([
-            "automatická kontrola cien na pozadí cez Plánovač úloh Windows alebo cron,",
+            "hosting webovej aplikácie na serveri s heslom, aby bola dostupná aj z mobilu,",
             "e-mailové alebo systémové notifikácie pri dosiahnutí cieľovej ceny,",
             "kolekcie hier a viacero používateľov s prihlásením,",
             "ceny priamo v eurách z obchodov, ktoré ich poskytujú,",
@@ -652,8 +720,8 @@ def section_sources() -> list:
         p("Pri projekte som používal AI asistenta <b>Claude</b> (Anthropic). Pomáhal mi s výberom a "
           "návrhom témy, s návrhom architektúry, s generovaním častí zdrojového kódu (backend, "
           "webové rozhranie, testy), s hľadaním chýb a s prípravou textu tejto dokumentácie. "
-          "Vygenerovaný kód som spúšťal, testoval na vlastnom počítači s reálnymi dátami, prechádzal "
-          "a upravoval. Rozumiem fungovaniu všetkých modulov a viem vysvetliť technické rozhodnutia "
+          "Vygenerovaný kód som spúšťal, testoval na vlastnom počítači s reálnymi dátami (pytest, ruff, "
+          "mypy), prechádzal a upravoval. Rozumiem fungovaniu všetkých modulov a viem vysvetliť technické rozhodnutia "
           "opísané v tejto dokumentácii."),
     ]
 
@@ -674,10 +742,22 @@ def build() -> None:
     for section in (section_intro, section_requirements, section_design, section_technologies,
                     section_implementation, section_testing, section_security, section_usage,
                     section_lessons, section_limits, section_sources):
-        story += section()
+        story += list(flatten(section()))
     doc.multiBuild(story)
     print(f"Documentation written to {OUTPUT}")
 
 
-if __name__ == "__main__":
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate docs/documentation.pdf")
+    parser.add_argument("--author", default=AUTHOR, help="your name for the title page")
+    parser.add_argument("--year", default=ACADEMIC_YEAR, help='academic year, e.g. "2026/2027"')
+    parser.add_argument("--repo", default=REPOSITORY, help="repository URL")
+    args = parser.parse_args()
+    globals().update(AUTHOR=args.author, ACADEMIC_YEAR=args.year, REPOSITORY=args.repo)
+    if args.author == "Meno Priezvisko":
+        print('WARNING: the author is still a placeholder. Use: --author "Meno Priezvisko"')
     build()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,7 +1,11 @@
 import pytest
 
 from game_tracker.collector import PriceAlert, UpdateReport
-from game_tracker.ui.formatting import alert_message, parse_optional_price, update_summary
+from game_tracker.ui.formatting import (
+    alert_message,
+    parse_optional_price,
+    update_summary,
+)
 
 
 @pytest.mark.parametrize(("raw", "expected"),

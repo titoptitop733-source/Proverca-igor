@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import logging
-from tkinter import messagebox
-
 import tkinter as tk
+from tkinter import messagebox
 
 from game_tracker.api_client import ApiError
 

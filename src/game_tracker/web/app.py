@@ -122,7 +122,8 @@ def create_app(
 
     @app.post("/api/update", response_model=UpdateOut, tags=["wishlist"])
     def update_prices(payload: UpdateIn | None = None) -> UpdateOut:
-        return serializers.update_report(service.update_prices(force=bool(payload and payload.force)))
+        force = bool(payload and payload.force)
+        return serializers.update_report(service.update_prices(force=force))
 
     # ------------------------------------------------------------------ catalogue
 

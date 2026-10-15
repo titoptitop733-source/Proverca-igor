@@ -17,8 +17,18 @@ from game_tracker.collector import (
     update_wishlist,
 )
 from game_tracker.config import Settings
-from game_tracker.models import DealListing, GameDetails, GameSearchResult, PricePoint, Store
-from game_tracker.overview import GameOverview, build_game_overview, build_wishlist_overview
+from game_tracker.models import (
+    DealListing,
+    GameDetails,
+    GameSearchResult,
+    PricePoint,
+    Store,
+)
+from game_tracker.overview import (
+    GameOverview,
+    build_game_overview,
+    build_wishlist_overview,
+)
 from game_tracker.storage import Storage
 
 

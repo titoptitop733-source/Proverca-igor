@@ -88,12 +88,15 @@ def game_events(overview: GameOverview) -> list[ActivityEvent]:
     return events
 
 
-def build_dashboard(overviews: Sequence[GameOverview], activity_limit: int = 12) -> DashboardSummary:
-    with_stats = [o for o in overviews if o.stats is not None]
-    discounted = [o for o in with_stats if o.stats.current_discount > 0]
+def build_dashboard(
+    overviews: Sequence[GameOverview], activity_limit: int = 12
+) -> DashboardSummary:
+    # Only games with at least one recorded price take part in the price calculations.
+    priced = [(o, o.stats) for o in overviews if o.stats is not None]
+    discounted = [(o, stats) for o, stats in priced if stats.current_discount > 0]
     featured = max(
         discounted,
-        key=lambda o: (o.stats.current_discount, o.stats.retail_price - o.stats.current_price),
+        key=lambda pair: (pair[1].current_discount, pair[1].retail_price - pair[1].current_price),
         default=None,
     )
     events = [event for o in overviews for event in game_events(o)]
@@ -102,11 +105,11 @@ def build_dashboard(overviews: Sequence[GameOverview], activity_limit: int = 12)
     return DashboardSummary(
         tracked_games=len(overviews),
         potential_savings=round(
-            sum(max(o.stats.retail_price - o.stats.current_price, 0) for o in with_stats), 2
+            sum(max(stats.retail_price - stats.current_price, 0.0) for _, stats in priced), 2
         ),
         price_drops=sum(1 for o in overviews if (price_change(o) or 0) < 0),
-        historical_lows=sum(1 for o in with_stats if is_at_historical_low(o)),
+        historical_lows=sum(1 for o, _ in priced if is_at_historical_low(o)),
         targets_reached=sum(1 for o in overviews if target_status(o) is TargetStatus.REACHED),
-        featured=featured,
+        featured=featured[0] if featured else None,
         activity=events[:activity_limit],
     )

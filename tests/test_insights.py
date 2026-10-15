@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta, timezone
 
 from game_tracker.analysis import compute_stats, recommend
-from game_tracker.insights import TargetStatus, build_dashboard, game_events, target_status
+from game_tracker.insights import (
+    TargetStatus,
+    build_dashboard,
+    game_events,
+    target_status,
+)
 from game_tracker.models import PricePoint, WishlistItem
 from game_tracker.overview import GameOverview
 
