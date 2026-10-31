@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DROPZONE - Game price intelligence</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='3' width='26' height='26' rx='7' fill='%230d0f12' stroke='%23b7ff5a' stroke-width='2.5'/><path d='M10 13l6 6 6-6' fill='none' stroke='%23b7ff5a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/css/app.css">
+  <script>
+    // Runs before the page is painted so the saved theme is used immediately.
+    try {
+      const theme = (JSON.parse(localStorage.getItem("dropzone.prefs.v1") || "{}").theme) || "dark";
+      const light = theme === "light" || (theme === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+      document.documentElement.dataset.theme = light ? "light" : "dark";
+    } catch { document.documentElement.dataset.theme = "dark"; }
+  </script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#/overview" aria-label="DROPZONE home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="3" y="3" width="26" height="26" rx="7" fill="none" stroke="currentColor" stroke-width="2.2"/>
+          <path d="M10 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16" cy="24" r="1.6" fill="currentColor"/>
+        </svg>
+        <div class="brand-text">
+          <div class="brand-name">DROPZONE</div>
+          <div class="brand-sub">Game price intelligence</div>
+        </div>
+      </a>
+
+      <nav class="nav-group" id="nav-main"></nav>
+      <nav class="nav-group" id="nav-library"></nav>
+
+      <div class="sidebar-bottom">
+        <div class="savings-box" id="savings-box" hidden></div>
+        <div class="sync-status" id="sync-status"><i class="sync-dot"></i><span>Starting…</span></div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="search-wrap" id="search-wrap">
+          <input class="search-input" id="global-search" type="search" autocomplete="off"
+                 placeholder="Search any PC game…" aria-label="Search games">
+          <kbd class="kbd">Ctrl K</kbd>
+          <div class="search-results" id="search-results" hidden></div>
+        </div>
+        <div class="topbar-actions">
+          <select class="currency-select" id="currency-select" aria-label="Currency"></select>
+          <button class="icon-button" id="theme-button" title="Switch theme" aria-label="Switch light or dark theme"></button>
+          <button class="icon-button" id="refresh-button" title="Update prices" aria-label="Update prices"></button>
+          <button class="icon-button" id="notify-button" title="Price activity" aria-label="Price activity"></button>
+          <button class="icon-button" id="settings-button" title="Settings" aria-label="Settings"></button>
+        </div>
+      </header>
+      <main class="view" id="view" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation"></nav>
+  <div id="drawer-root"></div>
+  <div id="modal-root"></div>
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

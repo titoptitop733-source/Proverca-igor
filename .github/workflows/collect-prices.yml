@@ -1,0 +1,73 @@
+# Cloud price collector: checks prices every 6 hours without your computer running.
+#
+# The games to track come from data/wishlist.json on the main branch
+# (update it locally with: game-tracker sync --push).
+# The resulting database is stored on the "data" branch as a single commit that is
+# replaced on every run, so the repository does not grow.
+
+name: Collect prices
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"     # every 6 hours (GitHub may start a few minutes late)
+  workflow_dispatch:            # "Run workflow" button in the Actions tab
+
+permissions:
+  contents: write               # needed to push the database to the data branch
+
+concurrency:
+  group: collect-prices
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GT_DB_PATH: data/game_tracker.db
+      GT_MIN_SNAPSHOT_INTERVAL_HOURS: "5"
+      GT_LOG_LEVEL: INFO
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install .
+
+      - name: Restore database from the data branch
+        run: |
+          if git fetch --depth=1 origin data; then
+            git show origin/data:game_tracker.db > data/game_tracker.db
+            echo "Restored existing database"
+          else
+            echo "No data branch yet - starting with an empty database"
+          fi
+
+      - name: Check prices
+        run: game-tracker collect --wishlist data/wishlist.json
+
+      - name: Summary
+        if: always()
+        run: |
+          echo '### Tracked games' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          game-tracker list >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save database to the data branch
+        run: |
+          mkdir publish
+          cp data/game_tracker.db publish/
+          cd publish
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add game_tracker.db
+          git commit -q -m "Price snapshot $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
