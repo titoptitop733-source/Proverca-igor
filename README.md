@@ -79,6 +79,13 @@ DROPZONE je aplikácia na sledovanie cien PC hier v obchodoch ako Steam, GOG, Hu
 
 Ceny hier sa často menia a v jednotlivých obchodoch sa líšia. Ručné porovnávanie vo viacerých obchodoch je zdĺhavé, ľahko sa premešká zľava, alebo sa hra kúpi tesne pred väčším výpredajom. DROPZONE zaznamenáva ceny sledovaných hier zo všetkých obchodov, ukazuje históriu a historické minimum a pri každej hre uvedie, či je cena výhodná, vrátane dôvodov odporúčania. Používateľ si môže nastaviť cieľovú cenu a aplikácia ho upozorní, keď ju cena dosiahne.
 
+## Autor
+
+Ivan Nerodyk (`in572ya`), Fakulta elektrotechniky a informatiky, Technická univerzita v Košiciach, predmet Programovanie v Pythone, akademický rok 2026/2027.
+
+- Oficiálny repozitár na odovzdanie: https://git.kpi.fei.tuke.sk/python/2026/ivan-nerodyk
+- Zrkadlo na GitHube (tu beží aj zber cien v cloude): https://github.com/titoptitop733-source/Proverca-igor
+
 ## Aktuálna funkcionalita
 
 - vyhľadanie ľubovoľnej PC hry (CheapShark API) a pridanie do zoznamu sledovaných hier (wishlist) s voliteľnou cieľovou cenou;
@@ -114,9 +121,16 @@ Jadro je hotové a funkčné. Do finálnej verzie zostáva:
 - **Používateľské rozhranie:** webové rozhranie (HTML, CSS, JavaScript bez build kroku) a desktopová aplikácia v Tkinteri.
 - **Skriptovanie a automatizácia:** CLI (`argparse`), konfigurácia cez `.env`, `pathlib`, `subprocess` (git) a workflow GitHub Actions na zber cien.
 
-## Inštalácia a spustenie
+## Požiadavky
 
-Požiadavky: Python 3.10 alebo novší a internetové pripojenie (API kľúče nie sú potrebné). Stiahnite repozitár (`git clone`), prejdite do jeho priečinka a v termináli spustite:
+- Python 3.10 alebo novší (vyvíjané a testované na 3.12 a 3.14);
+- internetové pripojenie (CheapShark a Frankfurter API nevyžadujú API kľúče);
+- Tkinter pre desktopovú aplikáciu (súčasť bežnej inštalácie Pythonu na Windows a macOS; na Linuxe balík `python3-tk`);
+- závislosti sú v `pyproject.toml` (httpx, python-dotenv, pandas, matplotlib, FastAPI, uvicorn), vývojové nástroje (pytest, ruff, mypy) sa inštalujú cez `.[dev]`.
+
+## Inštalácia
+
+Stiahnite repozitár (`git clone`), prejdite do jeho priečinka a v termináli spustite:
 
 ```bash
 python -m venv .venv
@@ -124,22 +138,35 @@ python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 pip install -e ".[dev]"
 pytest                      # všetky testy prejdú, nepotrebujú internet
-game-tracker web            # otvorí webové rozhranie na http://127.0.0.1:8000
 ```
 
-Databáza `data/game_tracker.db` sa vytvorí automaticky pri prvom spustení. Konfigurácia je voliteľná: súbor `.env.example` skopírujte na `.env` (všetky hodnoty majú predvolené nastavenie).
+## Konfigurácia
+
+Konfigurácia je voliteľná: súbor `.env.example` skopírujte na `.env` (všetky hodnoty majú predvolené nastavenie). Súbor `.env` sa nikdy necommituje.
 
 | Premenná | Predvolená hodnota | Význam |
 |----------|--------------------|--------|
 | `GT_API_BASE_URL` | `https://www.cheapshark.com/api/1.0` | API s cenami |
 | `GT_FX_API_URL` | `https://api.frankfurter.dev/v1` | API s kurzami mien |
-| `GT_DB_PATH` | `data/game_tracker.db` | súbor databázy |
+| `GT_DB_PATH` | `data/game_tracker.db` | súbor databázy (vytvorí sa automaticky) |
+| `GT_CHARTS_DIR` | `data/charts` | priečinok na exportované grafy |
 | `GT_HTTP_TIMEOUT` | `10` | timeout HTTP v sekundách |
 | `GT_MIN_SNAPSHOT_INTERVAL_HOURS` | `6` | minimálny odstup dvoch kontrol ceny hry |
+| `GT_LOG_LEVEL` | `WARNING` | úroveň logovania (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `GT_WEB_HOST`, `GT_WEB_PORT` | `127.0.0.1`, `8000` | adresa webového servera (len lokálne) |
-| `GT_SYNC_REPO` | prázdne | voliteľné: repozitár so zberom cien v cloude |
+| `GT_SYNC_REPO` | prázdne | voliteľné: GitHub repozitár (`vlastník/repozitár`) so zberom cien v cloude |
+| `GT_SYNC_BRANCH` | `data` | vetva s databázou zo zberu cien |
+| `GT_SYNC_TOKEN` | prázdne | iba pre súkromný repozitár: token s právom čítať obsah |
 
-Ďalšie spôsoby spustenia: `game-tracker gui` (desktopová aplikácia), `game-tracker --help` (zoznam príkazov).
+## Spustenie
+
+```bash
+game-tracker web            # webové rozhranie na http://127.0.0.1:8000 (dokumentácia API: /docs)
+game-tracker gui            # desktopová aplikácia (Tkinter)
+game-tracker --help         # zoznam príkazov príkazového riadka
+```
+
+Databáza `data/game_tracker.db` sa vytvorí automaticky pri prvom spustení.
 
 ## Základné použitie
 
