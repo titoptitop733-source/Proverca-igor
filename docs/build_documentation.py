@@ -3,9 +3,10 @@
 Usage (from the project root, with the virtual environment activated):
 
     pip install -e ".[docs]"
-    python docs/build_documentation.py --author "Meno Priezvisko"
+    python docs/build_documentation.py
 
-Optional: --year "2026/2027" and --repo URL. To refresh the screenshots from your own
+The author and repository are set in the defaults at the top of the file. Optional:
+--author NAME, --year "2026/2027" and --repo URL. To refresh the screenshots from your own
 running application first, see docs/take_screenshots.py. The text is in Slovak (the
 language of the course).
 """
@@ -45,10 +46,11 @@ from reportlab.platypus.tableofcontents import TableOfContents  # noqa: E402
 
 # ---------------------------------------------------------------------- defaults
 # Normally set on the command line (--author, --year, --repo), not here.
-AUTHOR = "Meno Priezvisko"
+AUTHOR = "Ivan Nerodyk"
 ACADEMIC_YEAR = "2026/2027"
 PROJECT_TITLE = "DROPZONE – sledovanie cien PC hier"
-REPOSITORY = "https://github.com/titoptitop733-source/Proverca-igor"
+REPOSITORY = "https://git.kpi.fei.tuke.sk/python/2026/ivan-nerodyk"
+GITHUB_MIRROR = "https://github.com/titoptitop733-source/Proverca-igor"
 # ----------------------------------------------------------------------------------
 
 DOCS = Path(__file__).resolve().parent
@@ -280,6 +282,7 @@ def title_page() -> list:
         Paragraph(f"Autor: <b>{AUTHOR}</b>", STYLES["center"]),
         Paragraph(f"Akademický rok: {ACADEMIC_YEAR}", STYLES["center"]),
         Paragraph(f"Repozitár: {REPOSITORY}", STYLES["center"]),
+        Paragraph(f"Zrkadlo na GitHube: {GITHUB_MIRROR}", STYLES["center"]),
         NextPageTemplate("content"),
         PageBreak(),
     ]
@@ -755,7 +758,7 @@ def main() -> None:
     args = parser.parse_args()
     globals().update(AUTHOR=args.author, ACADEMIC_YEAR=args.year, REPOSITORY=args.repo)
     if args.author == "Meno Priezvisko":
-        print('WARNING: the author is still a placeholder. Use: --author "Meno Priezvisko"')
+        print('WARNING: the author is still a placeholder. Use: --author "Ivan Nerodyk"')
     build()
 
 
