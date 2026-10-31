@@ -112,7 +112,7 @@ Jadro je hotové a funkčné. Do finálnej verzie zostáva:
 - **Spracovanie a vizualizácia dát:** pandas počíta štatistiky a odporúčanie, matplotlib kreslí grafy (PNG aj vo vnútri Tkinter okna).
 - **Web backend:** FastAPI REST API s Pydantic modelmi požiadaviek a odpovedí a automatickou dokumentáciou na `/docs`.
 - **Používateľské rozhranie:** webové rozhranie (HTML, CSS, JavaScript bez build kroku) a desktopová aplikácia v Tkinteri.
-- **Skriptovanie a automatizácia:** CLI (`argparse`), konfigurácia cez `.env`, `pathlib`, `subprocess` (git) a plánovaný workflow GitHub Actions na zber cien.
+- **Skriptovanie a automatizácia:** CLI (`argparse`), konfigurácia cez `.env`, `pathlib`, `subprocess` (git) a workflow GitHub Actions na zber cien.
 
 ## Inštalácia a spustenie
 
