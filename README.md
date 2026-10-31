@@ -1,263 +1,213 @@
-# DROPZONE - Game Price Tracker
+# Semestrálny projekt - Programovanie v Pythone
 
-[![Tests](https://github.com/titoptitop733-source/Proverca-igor/actions/workflows/tests.yml/badge.svg)](https://github.com/titoptitop733-source/Proverca-igor/actions/workflows/tests.yml)
+**Študent:** Ivan Nerodyk
+**Názov projektu:** DROPZONE – sledovanie cien PC hier
 
-## Short description
+Podrobné a aktuálne znenie zadania je na stránke predmetu:
+https://marek-horvath.github.io/python/projekt/
 
-Track prices of PC games across digital stores (Steam, GOG, Humble, Epic, ...), keep a
-wishlist with target prices and get an explained **"buy now or wait"** recommendation
-based on the recorded price history.
+## Zadanie
 
-**Author:** _Your Name_ · Technical University of Košice, FEI · Programovanie v Pythone
+Navrhnite a implementujte vlastný individuálny projekt v jazyku Python. Téma je voľná, projekt však musí riešiť konkrétny problém alebo poskytovať ucelenú funkcionalitu.
 
-## Problem being solved
+Projekt musí zmysluplne kombinovať minimálne 3 technologické oblasti, napríklad:
 
-Game prices change often and differ between stores. Checking a wishlist manually in
-several stores is slow and it is easy to miss a sale - or to buy just before a bigger one.
-DROPZONE records prices of tracked games from all stores into a local database, shows the
-price history, compares stores and tells the user whether the current price is a good
-deal compared to the game's history.
+- skriptovanie, súbory alebo automatizácia;
+- GUI alebo webové používateľské rozhranie;
+- HTTP a externé API;
+- databáza;
+- spracovanie alebo vizualizácia dát;
+- web scraping alebo automatizácia prehliadača;
+- web backend;
+- iná primeraná Python technológia.
 
-## Features
+Samotný import knižnice sa nepočíta. Každá zvolená technológia musí riešiť reálnu časť projektu.
 
-- search any PC game and add it to the wishlist (live data from the CheapShark API)
-- price snapshots from all stores stored in SQLite, with a minimal interval between checks
-- statistics with pandas: all-time low, average, highest price, discount frequency
-- **buy / good deal / wait recommendation** with human-readable reasons
-- target prices with alerts (target reached, almost there, waiting for a drop)
-- dashboard: potential savings, price drops, historical lows, activity feed
-- **Discover** page with live discounts, store / price / discount filters and sorting
-- prices shown in USD, EUR or GBP (ECB exchange rates from the Frankfurter API)
-- dark and light theme (or follow the system setting), remembered in the browser
-- three user interfaces sharing one application core:
-  - **web app** (FastAPI REST API + single-page frontend) - main interface
-  - desktop app (Tkinter + embedded matplotlib chart)
-  - command line (argparse)
+## Míľniky a hodnotenie
 
-## Technology areas
+| Časť | Termín | Body |
+|------|--------|------|
+| MVP - prvá funkčná verzia | 6. týždeň semestra | 30 |
+| Finálna aplikácia | 11.-13. týždeň semestra | 40 |
+| Technická dokumentácia PDF | finálne odovzdanie | 20 |
+| Približne 5-minútové video | finálne odovzdanie | 10 |
+| **Spolu** | | **100** |
 
-| Area | Where it is used |
-|------|------------------|
-| HTTP and external APIs | `httpx` clients for CheapShark (prices, deals, stores) and Frankfurter (exchange rates); timeouts, error mapping, response validation, caching |
-| Databases | SQLite schema (games, stores, price history), parameterized queries, window functions, automatic migrations |
-| Data Science | pandas statistics and recommendation heuristic, matplotlib charts (PNG + Tkinter) |
-| Web backend | FastAPI REST API, Pydantic request/response models, OpenAPI docs at `/docs` |
-| User interface | web frontend (HTML/CSS/JavaScript, no build step), Tkinter desktop GUI |
-| Scripting / automation | `argparse` CLI, configuration via `.env`, `pathlib`, `subprocess` (git), scheduled GitHub Actions workflow |
+MVP musí obsahovať reálny spustiteľný kód a základ hlavnej funkcionality. Nestačí prázdna štruktúra, mockup ani dokument s návrhom.
 
-## Requirements
+## Požadovaný obsah repozitára
 
-- Python 3.10 or newer
-- internet connection for live prices (no API keys are needed)
-- a web browser for the web interface
+- zdrojový kód rozdelený do zmysluplných modulov;
+- tento README.md doplnený o informácie o projekte;
+- pyproject.toml alebo requirements.txt;
+- .gitignore;
+- .env.example, ak projekt používa konfiguračné premenné;
+- testy primerané typu projektu;
+- potrebné assets alebo malé datasety;
+- finálna technická dokumentácia v PDF, odporúčane v rozsahu približne 10-15 strán.
 
-## Installation
+Video necommitujte ako veľký binárny súbor do Git repozitára. Spôsob jeho odovzdania bude oznámený samostatne.
+
+## Pravidlá práce
+
+- Commitujte priebežne. Jeden veľký commit na konci sa nepovažuje za priebežnú prácu.
+- Projekt musí byť možné spustiť na inom počítači podľa návodu v README.
+- Necommitujte heslá, API kľúče, tokeny, osobné dáta ani obsah súboru .env.
+- Nepoužívajte hardcoded absolútne cesty závislé od vášho počítača.
+- Ošetrite neplatné vstupy a bežné chybové situácie.
+- Uprednostnite menší funkčný a kvalitný projekt pred veľkým nefunkčným riešením.
+
+## Použitie AI
+
+AI nástroje sú povolené. Za celý odovzdaný projekt však zodpovedáte vy. Musíte rozumieť použitému kódu, vedieť ho vysvetliť, upraviť a obhájiť svoje technické rozhodnutia.
+
+Výraznejšie použitie AI, externých šablón, tutoriálov alebo prevzatého kódu uveďte v dokumentácii. Nepochopenie podstatnej časti riešenia môže viesť k bodovej penalizácii alebo k nesplneniu podmienok predmetu.
+
+## Výskumné spracovanie
+
+Odovzdaný projekt môže byť použitý na pedagogický alebo vedecký výskum. Pred spracovaním budú odstránené priame identifikátory študenta a výsledky budú prezentované iba v anonymizovanej alebo súhrnnej podobe.
+
+---
+
+# O projekte
+
+## Krátky popis
+
+DROPZONE je aplikácia na sledovanie cien PC hier v obchodoch ako Steam, GOG, Humble Store alebo Epic Games Store. Zaznamenáva ceny z API CheapShark do databázy SQLite, zobrazuje ich vývoj a porovnanie obchodov a na základe histórie odporúča, či hru kúpiť teraz, alebo počkať. Je určená hráčom, ktorí chcú kupovať hry výhodne. Hlavným cieľom je ušetriť čas pri sledovaní zliav a pomôcť s rozhodnutím o kúpe pomocou vysvetliteľného odporúčania.
+
+### Čo projekt rieši
+
+Ceny hier sa často menia a v jednotlivých obchodoch sa líšia. Ručné porovnávanie vo viacerých obchodoch je zdĺhavé, ľahko sa premešká zľava, alebo sa hra kúpi tesne pred väčším výpredajom. DROPZONE zaznamenáva ceny sledovaných hier zo všetkých obchodov, ukazuje históriu a historické minimum a pri každej hre uvedie, či je cena výhodná, vrátane dôvodov odporúčania. Používateľ si môže nastaviť cieľovú cenu a aplikácia ho upozorní, keď ju cena dosiahne.
+
+## Aktuálna funkcionalita
+
+- vyhľadanie ľubovoľnej PC hry (CheapShark API) a pridanie do zoznamu sledovaných hier (wishlist) s voliteľnou cieľovou cenou;
+- záznam cien zo všetkých obchodov do SQLite (tzv. snímky) s minimálnym intervalom medzi kontrolami;
+- štatistiky cez pandas: historické minimum, priemer, maximum, frekvencia zliav;
+- odporúčanie **BUY NOW / GOOD DEAL / WAIT** s vysvetlením dôvodov;
+- cieľové ceny so stavom (dosiahnutá, takmer, čaká sa) a upozornenia;
+- prehľad (dashboard) s potenciálnou úsporou, poklesmi cien a históriou udalostí;
+- stránka **Discover** s aktuálnymi zľavami, filtrami (obchod, cena, zľava) a triedením;
+- zobrazenie cien v USD, EUR alebo GBP (kurzy ECB z Frankfurter API), tmavá a svetlá téma;
+- tri rozhrania nad spoločnou logikou: **webová aplikácia** (FastAPI), desktopová aplikácia (Tkinter) a príkazový riadok;
+- zber cien v cloude (GitHub Actions, každých 6 hodín) a jeho zlúčenie s lokálnou databázou;
+- 107 automatických testov, kontrola štýlu (ruff) a typov (mypy), CI v GitHub Actions.
+
+## Plánovaná funkcionalita
+
+Jadro je hotové a funkčné. Do finálnej verzie zostáva:
+
+| Krok | Čo | Prečo |
+|------|----|-------|
+| 1 | **Dlhšia história cien** – zber v cloude beží každých 6 hodín a história rastie sama | odporúčanie a grafy majú zmysel až s dátami za týždne |
+| 2 | **Doladenie odporúčania** na reálnych dátach (prahy v `analysis.py`) a testy pre nové prípady | súčasné prahy sú odôvodnený prvý odhad |
+| 3 | Možné rozšírenia: e-mailové alebo systémové upozornenie pri dosiahnutí cieľa, porovnanie viacerých hier v jednom grafe, export do CSV | väčší úžitok; každé je voliteľné a malé |
+| 4 | Technická dokumentácia (PDF, 10–15 strán) a približne 5-minútové video | povinné výstupy finálneho odovzdania |
+| 5 | Záverná kontrola: viac testov okrajových prípadov, úprava README, overenie behu na čistom klone | reprodukovateľnosť |
+
+## Použité technologické oblasti
+
+- **HTTP a externé API:** klienty `httpx` pre CheapShark (ceny, zľavy, obchody) a Frankfurter (kurzy mien); timeouty, mapovanie chýb na vlastnú výnimku, validácia odpovedí a cache kurzov.
+- **Databáza:** SQLite s tabuľkami hier, obchodov a histórie cien; parametrizované dotazy, window funkcia na výber najlepšej ceny snímky, automatické migrácie.
+- **Spracovanie a vizualizácia dát:** pandas počíta štatistiky a odporúčanie, matplotlib kreslí grafy (PNG aj vo vnútri Tkinter okna).
+- **Web backend:** FastAPI REST API s Pydantic modelmi požiadaviek a odpovedí a automatickou dokumentáciou na `/docs`.
+- **Používateľské rozhranie:** webové rozhranie (HTML, CSS, JavaScript bez build kroku) a desktopová aplikácia v Tkinteri.
+- **Skriptovanie a automatizácia:** CLI (`argparse`), konfigurácia cez `.env`, `pathlib`, `subprocess` (git) a plánovaný workflow GitHub Actions na zber cien.
+
+## Inštalácia a spustenie
+
+Požiadavky: Python 3.10 alebo novší a internetové pripojenie (API kľúče nie sú potrebné). Stiahnite repozitár (`git clone`), prejdite do jeho priečinka a v termináli spustite:
 
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate      Linux/macOS: source .venv/bin/activate
+# Windows:     .venv\Scripts\activate
+# Linux/macOS: source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env        # optional - the defaults work out of the box
+pytest                      # všetky testy prejdú, nepotrebujú internet
+game-tracker web            # otvorí webové rozhranie na http://127.0.0.1:8000
 ```
 
-The database `data/game_tracker.db` is created automatically on first start.
+Databáza `data/game_tracker.db` sa vytvorí automaticky pri prvom spustení. Konfigurácia je voliteľná: súbor `.env.example` skopírujte na `.env` (všetky hodnoty majú predvolené nastavenie).
 
-## Configuration
+| Premenná | Predvolená hodnota | Význam |
+|----------|--------------------|--------|
+| `GT_API_BASE_URL` | `https://www.cheapshark.com/api/1.0` | API s cenami |
+| `GT_FX_API_URL` | `https://api.frankfurter.dev/v1` | API s kurzami mien |
+| `GT_DB_PATH` | `data/game_tracker.db` | súbor databázy |
+| `GT_HTTP_TIMEOUT` | `10` | timeout HTTP v sekundách |
+| `GT_MIN_SNAPSHOT_INTERVAL_HOURS` | `6` | minimálny odstup dvoch kontrol ceny hry |
+| `GT_WEB_HOST`, `GT_WEB_PORT` | `127.0.0.1`, `8000` | adresa webového servera (len lokálne) |
+| `GT_SYNC_REPO` | prázdne | voliteľné: repozitár so zberom cien v cloude |
 
-All settings live in `.env` (see `.env.example`). Nothing is hard-coded in the source.
+Ďalšie spôsoby spustenia: `game-tracker gui` (desktopová aplikácia), `game-tracker --help` (zoznam príkazov).
 
-| Variable | Default | Meaning |
-|----------|---------|---------|
-| `GT_API_BASE_URL` | `https://www.cheapshark.com/api/1.0` | price API |
-| `GT_FX_API_URL` | `https://api.frankfurter.dev/v1` | exchange-rate API |
-| `GT_DB_PATH` | `data/game_tracker.db` | SQLite database file |
-| `GT_HTTP_TIMEOUT` | `10` | HTTP timeout in seconds |
-| `GT_MIN_SNAPSHOT_INTERVAL_HOURS` | `6` | minimal hours between two price checks of a game |
-| `GT_WEB_HOST` | `127.0.0.1` | web server address (local computer only) |
-| `GT_WEB_PORT` | `8000` | web server port |
-| `GT_CHARTS_DIR` | `data/charts` | where CLI charts are saved |
-| `GT_LOG_LEVEL` | `WARNING` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
-| `GT_SYNC_REPO` | empty | `owner/repository` with the cloud collector (empty = off) |
-| `GT_SYNC_BRANCH` | `data` | branch with the cloud database |
-| `GT_SYNC_TOKEN` | empty | only for private repositories |
+## Základné použitie
 
-## Running
+Hlavný scenár vo webovom rozhraní: kliknite na **Track a game**, vyhľadajte hru a pridajte ju. Aplikácia uloží prvú snímku cien zo všetkých obchodov. V detaile hry uvidíte graf ceny, porovnanie obchodov a kartu **Buy or wait?** s odporúčaním a dôvodmi. Nastavte cieľovú cenu – keď ju kontrola cien dosiahne, aplikácia upozorní. Na stránke **Discover** nájdete aktuálne zľavy.
 
-Run all commands from the project root with the virtual environment activated.
-
-### Web application (recommended)
+Ten istý scenár v príkazovom riadku:
 
 ```bash
-game-tracker web                 # opens http://127.0.0.1:8000 in the browser
-game-tracker web --port 8080     # another port
-game-tracker web --no-browser
+game-tracker search "hollow knight"       # nájde hru a jej ID
+game-tracker add 165363 --target 10       # sledovanie s cieľovou cenou (USD)
+game-tracker list                         # wishlist s cenami a odporúčaním
+game-tracker update                       # kontrola cien (--force ignoruje interval)
+game-tracker stats 165363                 # štatistiky a odporúčanie
 ```
 
-Stop the server with `Ctrl+C`. The interactive API documentation is at
-`http://127.0.0.1:8000/docs`.
+## Ďalšie informácie
 
-### Desktop application
-
-```bash
-game-tracker gui
-```
-
-### Command line
-
-```bash
-game-tracker search "hollow knight"        # find a game and its ID
-game-tracker add 165363 --target 7.50      # track a game with a target price (USD)
-game-tracker list                          # wishlist with prices and advice
-game-tracker update                        # check prices (--force ignores the interval)
-game-tracker history 165363                # best price per check (--all for every store)
-game-tracker stats 165363                  # statistics and recommendation
-game-tracker chart 165363 --open           # save a PNG chart and open it
-game-tracker target 165363 5
-game-tracker remove 165363
-game-tracker sync --push                   # merge cloud prices, publish wishlist.json
-game-tracker collect                       # what the GitHub workflow runs
-```
-
-## Cloud price collection (GitHub Actions)
-
-Prices are only checked while DROPZONE runs. To collect them even when your computer is
-off, the workflow `.github/workflows/collect-prices.yml` checks prices **every 6 hours on
-GitHub** for free:
-
-```
-your computer                          GitHub
--------------                          ------
-game-tracker sync --push  ---------->  data/wishlist.json on main (games + targets)
-                                       Actions, every 6 h: game-tracker collect
-game-tracker web / sync   <----------  game_tracker.db on the "data" branch
-(new snapshots are merged, nothing local is overwritten)
-```
-
-Setup (once):
-
-1. Push the project to GitHub (the workflow file must be on the `main` branch).
-2. In `.env` set `GT_SYNC_REPO=owner/repository` (for a private repository also
-   `GT_SYNC_TOKEN`, a fine-grained token with read access to *Contents*).
-3. Run `game-tracker sync --push` - this writes `data/wishlist.json` and pushes it.
-4. On GitHub open **Actions -> Collect prices -> Run workflow** for the first run.
-   Later runs start automatically. If the push step fails, enable
-   *Settings -> Actions -> General -> Workflow permissions -> Read and write*.
-
-After that, `game-tracker web` merges the cloud prices automatically on start; you can
-also run `game-tracker sync`. Whenever you add or remove games, run
-`game-tracker sync --push` so the cloud tracks the same list. The `data` branch always
-holds a single commit, so the repository does not grow. GitHub pauses scheduled
-workflows in repositories without any activity for 60 days.
-
-## Basic usage (web)
-
-1. Click **Track a game**, search a title and click **Track**.
-2. The dashboard shows tracked games, potential savings and the biggest discount.
-3. Open a game to see its price chart (1M - ALL), the store comparison and the
-   **Buy or wait?** verdict, and set a target price.
-4. **Discover** lists current deals; track any of them with one click.
-5. Prices are checked automatically when the app starts (respecting the interval);
-   the refresh button checks all games immediately.
-
-## REST API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/dashboard` | totals, featured deal, activity feed |
-| GET | `/api/wishlist` | tracked games with prices, status and advice |
-| POST | `/api/wishlist` | track a game `{game_id, target_price?}` (201, 409 duplicate) |
-| DELETE | `/api/wishlist/{id}` | stop tracking (204, 404) |
-| PUT | `/api/wishlist/{id}/target` | set or clear the target price |
-| GET | `/api/games/{id}` | detail: statistics, history, store offers |
-| POST | `/api/update` | check prices `{force}` |
-| GET | `/api/search?q=` | search games |
-| GET | `/api/deals` | current deals (`sort`, `store`, `max_price`, `title`, `page`) |
-| GET | `/api/stores`, `/api/meta` | store list; version, exchange rates, sources |
-
-All prices in the API are in USD; the frontend converts them for display.
-
-## Tests and code quality
-
-```bash
-pytest                        # 107 tests
-ruff check src tests          # code style - "All checks passed"
-mypy src/game_tracker         # type hints - "no issues found"
-```
-
-The same three checks run automatically on every push (GitHub Actions,
-`.github/workflows/tests.yml`).
-
-The tests never use the network: external APIs are replaced by `httpx.MockTransport`
-or fake data sources, the database is created in a temporary directory and the REST
-API is tested with FastAPI's `TestClient`.
-
-## Documentation
-
-The technical documentation is in `docs/documentation.pdf` (Slovak). It is generated by
-`docs/build_documentation.py`. To refresh the screenshots from your own running app and
-rebuild the PDF:
-
-```bash
-pip install -e ".[docs,shots]"
-playwright install chromium                  # one-time browser download
-game-tracker web --no-browser                # terminal 1 (leave running)
-python docs/take_screenshots.py              # terminal 2: saves docs/img/web_*.png
-python docs/build_documentation.py --author "Your Name"
-```
-
-## Project structure
+### Štruktúra projektu
 
 ```
 src/game_tracker/
-├── api_client.py    # CheapShark HTTP client -> domain models
-├── currency.py      # Frankfurter exchange rates with caching and fallback
-├── models.py        # dataclasses (Game, Deal, PricePoint, ...)
-├── storage.py       # SQLite repository and migrations
-├── collector.py     # adding games, price updates, alerts
-├── analysis.py      # pandas statistics and buy/wait recommendation
-├── insights.py      # target status, activity feed, dashboard totals
-├── overview.py      # stored data + analysis, shared by all interfaces
-├── service.py       # thread-safe facade for the GUI and the web API
-├── charts.py        # matplotlib charts
-├── sync.py          # cloud collector: wishlist.json, download and merge of snapshots
-├── config.py        # settings from environment / .env
-├── cli.py           # command-line interface
-├── ui/              # Tkinter desktop GUI
-└── web/
-    ├── app.py           # FastAPI application and routes
-    ├── schemas.py       # Pydantic request/response models
-    ├── serializers.py   # domain objects -> API responses
-    ├── server.py        # uvicorn start-up
-    └── static/          # frontend: index.html, css/, js/ (ES modules)
-tests/               # pytest tests
-docs/                # documentation.pdf + generator, screenshot script, images
-.github/workflows/   # tests.yml (CI) and collect-prices.yml (cloud price collection)
+├── api_client.py    # klient CheapShark API
+├── currency.py      # kurzy mien (Frankfurter, cache)
+├── models.py        # dátové triedy
+├── storage.py       # SQLite repozitár a migrácie
+├── collector.py     # pridanie hry, aktualizácia cien, upozornenia
+├── analysis.py      # pandas štatistiky a odporúčanie
+├── insights.py      # stav cieľa, udalosti, súhrn dashboardu
+├── overview.py, service.py   # spoločná logika pre všetky rozhrania
+├── sync.py          # zber v cloude: wishlist.json, zlúčenie databáz
+├── charts.py, config.py, cli.py
+├── ui/              # desktopová aplikácia (Tkinter)
+└── web/             # FastAPI (app, schemas, serializers) a frontend (static/)
+tests/               # pytest testy
+docs/                # technická dokumentácia (PDF) a jej generátor
+.github/workflows/   # tests.yml (CI) a collect-prices.yml (zber cien)
 ```
 
-## How the recommendation works
+### Ako funguje odporúčanie
 
-The advice uses the best price of every check plus the all-time low reported by
-CheapShark (which also covers the time before tracking started):
+Odporúčanie vychádza z najlepšej ceny každej snímky a z historického minima, ktoré hlási CheapShark:
 
-1. **BUY NOW** - the price reached your target, or is within 10 % of the all-time low
-2. **GOOD DEAL** - at least 50 % off, or 15 % below the average recorded price
-3. **WAIT** - the game has already been at least 30 % cheaper, or there is no discount
+1. **BUY NOW** – cena dosiahla cieľ alebo je najviac o 10 % nad historickým minimom;
+2. **GOOD DEAL** – zľava aspoň 50 % alebo cena aspoň o 15 % pod priemerom;
+3. **WAIT** – hra už bola aspoň o 30 % lacnejšia alebo momentálne nie je v zľave.
 
-With fewer than 3 checks the advice is marked as low-confidence. The rules explain
-past prices; they do not predict future sales. Thresholds are constants at the top of
-`analysis.py`.
+Pri menej ako troch snímkach sa uvedie nízka spoľahlivosť. Pravidlá vysvetľujú minulé ceny, nepredpovedajú budúce výpredaje. Prahy sú konštanty na začiatku `analysis.py`.
 
-## Security notes
+### Zber cien v cloude (GitHub Actions)
 
-- the web server listens on `127.0.0.1` only, so it is not reachable from the network
-- all SQL queries are parameterized; request bodies and query parameters are validated
-  by Pydantic (types, ranges, lengths)
-- text from external APIs is HTML-escaped in the frontend; only `https://` image URLs
-  are accepted from the API
-- no secrets are needed; configuration is read from `.env`, which is git-ignored
+Workflow `.github/workflows/collect-prices.yml` kontroluje ceny každých 6 hodín aj bez zapnutého počítača a ukladá databázu do vetvy `data`. Zoznam hier berie zo súboru `data/wishlist.json` (`game-tracker sync --push`). Príkaz `game-tracker sync` (a štart webu) nové snímky zlúči s lokálnou databázou – nič lokálne sa neprepíše. Funkcia je voliteľná a vyžaduje nastavenie `GT_SYNC_REPO`; bez nej aplikácia beží normálne.
 
-## Data sources
+### Testy a kvalita kódu
 
-Prices: [CheapShark API](https://apidocs.cheapshark.com/) (USD). Exchange rates:
-[Frankfurter](https://frankfurter.dev) - European Central Bank reference rates. Game
-artwork: Steam store CDN. Icons: [Lucide](https://lucide.dev) (ISC licence).
+```bash
+pytest                      # 107 testov, bez prístupu na internet (mock HTTP, dočasná databáza)
+ruff check src tests        # štýl kódu
+mypy src/game_tracker       # kontrola typov
+```
+
+### Bezpečnosť
+
+Webový server počúva iba na `127.0.0.1`; všetky SQL dotazy sú parametrizované; vstupy API validuje Pydantic; text z externých API sa vo frontende escapuje; žiadne tajomstvá nie sú v kóde (konfigurácia je v `.env`, ktorý je v `.gitignore`).
+
+## Zdroje a použité nástroje
+
+- CheapShark API (ceny hier): https://apidocs.cheapshark.com
+- Frankfurter API (referenčné kurzy ECB): https://frankfurter.dev
+- Knižnice: httpx, pandas, matplotlib, FastAPI, Pydantic, uvicorn, python-dotenv, pytest, ruff, mypy; ikony Lucide (licencia ISC); obrázky hier zo Steam CDN.
+- Dokumentácia jazyka Python a použitých knižníc; materiály predmetu: https://marek-horvath.github.io/python/
+- **AI nástroje:** pri projekte som používal AI asistenta Claude (Anthropic) na návrh témy a architektúry, generovanie častí kódu, testov a dokumentácie a na hľadanie chýb. Kód som spúšťal, testoval na reálnych dátach (pytest, ruff, mypy), prechádzal a upravoval; podrobnosti sú v technickej dokumentácii (`docs/documentation.pdf`).
