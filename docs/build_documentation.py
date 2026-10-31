@@ -282,7 +282,7 @@ def title_page() -> list:
         Paragraph(f"Autor: <b>{AUTHOR}</b>", STYLES["center"]),
         Paragraph(f"Akademický rok: {ACADEMIC_YEAR}", STYLES["center"]),
         Paragraph(f"Repozitár: {REPOSITORY}", STYLES["center"]),
-        Paragraph(f"Zrkadlo na GitHube: {GITHUB_MIRROR}", STYLES["center"]),
+        Paragraph(f"GitHub (pracovná kópia a zber cien): {GITHUB_MIRROR}", STYLES["center"]),
         NextPageTemplate("content"),
         PageBreak(),
     ]
@@ -364,7 +364,7 @@ def section_requirements() -> list:
             ["Analýza", "–", "štatistiky (pandas), odporúčanie, grafy, dashboard"],
             ["Externé API", "CheapShark (vyhľadávanie, ceny)", "+ CheapShark deals, Frankfurter (kurzy)"],
             ["Automatizácia", "ručné spustenie príkazu", "GitHub Actions každých 6 h, synchronizácia"],
-            ["Kvalita", "20 testov", "107 testov, ruff, mypy"],
+            ["Kvalita", "20 testov", "120 testov, ruff, mypy"],
         ], [3.2, 5.6, 7.7], "Porovnanie MVP a finálnej verzie"),
     ]
 
@@ -433,7 +433,7 @@ def section_technologies() -> list:
             ["Skriptovanie a automatizácia", "argparse, pathlib, subprocess, GitHub Actions",
              "CLI, konfigurácia, git push wishlistu, plánovaný zber cien",
              "konfigurácia mimo kódu; zber cien bez zapnutého počítača"],
-            ["Kvalita kódu", "pytest, ruff, mypy", "107 testov, štýl, kontrola typov",
+            ["Kvalita kódu", "pytest, ruff, mypy", "120 testov, štýl, kontrola typov",
              "fixtures, tmp_path, monkeypatch; type hints overené nástrojom"],
         ], [3.0, 3.4, 4.5, 5.6], "Technologické oblasti a ich použitie", keep=False),
         p("Závislosti sú uvedené v súbore <font name='%s'>pyproject.toml</font> a inštalujú sa jedným "
@@ -548,7 +548,7 @@ SELECT ... FROM (
 def section_testing() -> list:
     return [
         h1("6 Testovanie a robustnosť"),
-        p("Projekt obsahuje 107 automatických testov (pytest). Žiadny test nepoužíva internet: "
+        p("Projekt obsahuje 120 automatických testov (pytest). Žiadny test nepoužíva internet: "
           "externé API nahrádza <font name='%s'>httpx.MockTransport</font> alebo falošný zdroj dát, "
           "databáza vzniká v dočasnom adresári (<font name='%s'>tmp_path</font>) a REST API sa testuje "
           "cez <font name='%s'>TestClient</font> z FastAPI." % (MONO, MONO, MONO)),
@@ -626,7 +626,7 @@ def section_usage() -> list:
 python -m venv .venv
 .venv\\Scripts\\activate            # Linux/macOS: source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                             # 107 passed
+pytest                             # 120 passed
 ruff check src tests               # All checks passed
 mypy src/game_tracker              # Success: no issues found
 game-tracker web                   # otvorí http://127.0.0.1:8000
