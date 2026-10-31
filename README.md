@@ -1,6 +1,7 @@
 # Semestrálny projekt - Programovanie v Pythone
 
 **Študent:** Ivan Nerodyk
+
 **Názov projektu:** DROPZONE – sledovanie cien PC hier
 
 Podrobné a aktuálne znenie zadania je na stránke predmetu:
@@ -84,7 +85,7 @@ Ceny hier sa často menia a v jednotlivých obchodoch sa líšia. Ručné porovn
 Ivan Nerodyk (`in572ya`), Fakulta elektrotechniky a informatiky, Technická univerzita v Košiciach, predmet Programovanie v Pythone, akademický rok 2026/2027.
 
 - Oficiálny repozitár na odovzdanie: https://git.kpi.fei.tuke.sk/python/2026/ivan-nerodyk
-- Zrkadlo na GitHube (tu beží aj zber cien v cloude): https://github.com/titoptitop733-source/Proverca-igor
+- Pracovná kópia na GitHube (tu beží aj zber cien v cloude): https://github.com/titoptitop733-source/Proverca-igor
 
 ## Aktuálna funkcionalita
 
@@ -98,7 +99,7 @@ Ivan Nerodyk (`in572ya`), Fakulta elektrotechniky a informatiky, Technická univ
 - zobrazenie cien v USD, EUR alebo GBP (kurzy ECB z Frankfurter API), tmavá a svetlá téma;
 - tri rozhrania nad spoločnou logikou: **webová aplikácia** (FastAPI), desktopová aplikácia (Tkinter) a príkazový riadok;
 - zber cien v cloude (GitHub Actions, každých 6 hodín) a jeho zlúčenie s lokálnou databázou;
-- 107 automatických testov, kontrola štýlu (ruff) a typov (mypy), CI v GitHub Actions.
+- 120 automatických testov, kontrola štýlu (ruff) a typov (mypy), CI v GitHub Actions.
 
 ## Plánovaná funkcionalita
 
@@ -130,9 +131,11 @@ Jadro je hotové a funkčné. Do finálnej verzie zostáva:
 
 ## Inštalácia
 
-Stiahnite repozitár (`git clone`), prejdite do jeho priečinka a v termináli spustite:
+Stiahnite repozitár, prejdite do jeho priečinka a v termináli spustite:
 
 ```bash
+git clone https://git.kpi.fei.tuke.sk/python/2026/ivan-nerodyk.git
+cd ivan-nerodyk
 python -m venv .venv
 # Windows:     .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
@@ -222,7 +225,7 @@ Workflow `.github/workflows/collect-prices.yml` kontroluje ceny každých 6 hod�
 ### Testy a kvalita kódu
 
 ```bash
-pytest                      # 107 testov, bez prístupu na internet (mock HTTP, dočasná databáza)
+pytest                      # 120 testov, bez prístupu na internet (mock HTTP, dočasná databáza)
 ruff check src tests        # štýl kódu
 mypy src/game_tracker       # kontrola typov
 ```
